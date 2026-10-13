@@ -1,0 +1,428 @@
+{
+ "mau": {
+  "man_afk_tieu_de": {
+   "hop": [
+    114,
+    1195,
+    490,
+    1290
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "man_afk_chien_dau": {
+   "hop": [
+    1043,
+    2095,
+    1490,
+    2190
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "man_afk_huyen_linh": {
+   "hop": [
+    228,
+    2060,
+    735,
+    2130
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "doi_hinh_thanh_tich": {
+   "hop": [
+    290,
+    2320,
+    510,
+    2465
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "doi_hinh_tu_dong": {
+   "hop": [
+    560,
+    2340,
+    1010,
+    2420
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "doi_hinh_chien_dau": {
+   "hop": [
+    1120,
+    2320,
+    1505,
+    2450
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "tieu_de_mua_giai": {
+   "hop": [
+    895,
+    45,
+    1070,
+    95
+   ],
+   "neo": "tren",
+   "le": 40,
+   "nguong": 0.8
+  },
+  "tieu_de_huyen": {
+   "hop": [
+    945,
+    45,
+    1040,
+    95
+   ],
+   "neo": "tren",
+   "le": 40,
+   "nguong": 0.8
+  },
+  "tt_sao_chep": {
+   "hop": [
+    750,
+    2075,
+    1090,
+    2175
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "tt_nhan_de_dong": {
+   "hop": [
+    640,
+    2380,
+    960,
+    2455
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.9
+  },
+  "tt_o_loc_chu": {
+   "hop": [
+    150,
+    40,
+    820,
+    115
+   ],
+   "neo": "tren",
+   "le": 40,
+   "nguong": 0.8
+  },
+  "tt_mui_ten_phai": {
+   "hop": [
+    1320,
+    1290,
+    1480,
+    1450
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "tt_mui_ten_trai": {
+   "hop": [
+    95,
+    1290,
+    250,
+    1450
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "tt_khong_ban_ghi": {
+   "hop": [
+    500,
+    432,
+    1100,
+    508
+   ],
+   "neo": "tren",
+   "le": 120,
+   "nguong": 0.8
+  },
+  "tt_nam_dam": {
+   "hop": [
+    285,
+    672,
+    365,
+    772
+   ],
+   "neo": "giua",
+   "le": 300,
+   "nguong": 0.8
+  },
+  "danh_giay": {
+   "hop": [
+    1420,
+    30,
+    1590,
+    150
+   ],
+   "neo": "tren",
+   "le": 40,
+   "nguong": 0.9
+  },
+  "danh_toc_do": {
+   "hop": [
+    1060,
+    1960,
+    1500,
+    2100
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "danh_tam_dung": {
+   "hop": [
+    100,
+    1960,
+    260,
+    2100
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "tu_dong_chien_dau": {
+   "hop": [
+    450,
+    2333,
+    1050,
+    2407
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "bai_loi_khuyen": {
+   "hop": [
+    520,
+    1165,
+    1080,
+    1235
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "bai_thu_lai": {
+   "hop": [
+    960,
+    2370,
+    1290,
+    2475
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "thang_da_tang": {
+   "hop": [
+    415,
+    1612,
+    1185,
+    1698
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "thang_chien_dau": {
+   "hop": [
+    900,
+    2360,
+    1320,
+    2450
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "nut_quay_lai": {
+   "hop": [
+    40,
+    2340,
+    260,
+    2510
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "nghi_nhan_tiep_tuc": {
+   "hop": [
+    600,
+    2380,
+    1000,
+    2460
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.9
+  },
+  "thuong_nhan": {
+   "hop": [
+    680,
+    1370,
+    920,
+    1500
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "thuong_thoi_gian": {
+   "hop": [
+    1080,
+    800,
+    1410,
+    880
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "ban_do_nut_man_afk": {
+   "hop": [
+    0,
+    2390,
+    250,
+    2550
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "ban_do_che_do": {
+   "hop": [
+    600,
+    2400,
+    800,
+    2550
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  }
+ },
+ "man_hinh": [
+  {
+   "ten": "nghi",
+   "can": [
+    "nghi_nhan_tiep_tuc"
+   ]
+  },
+  {
+   "ten": "phan_thuong_afk",
+   "can": [
+    "thuong_nhan",
+    "thuong_thoi_gian"
+   ]
+  },
+  {
+   "ten": "thanh_tich_trong",
+   "can": [
+    "tt_khong_ban_ghi",
+    "tt_o_loc_chu"
+   ]
+  },
+  {
+   "ten": "thanh_tich",
+   "can": [
+    "tt_sao_chep",
+    "tt_nhan_de_dong"
+   ]
+  },
+  {
+   "ten": "bai",
+   "can": [
+    "bai_thu_lai"
+   ]
+  },
+  {
+   "ten": "thang",
+   "can": [
+    "thang_da_tang",
+    "thang_chien_dau"
+   ]
+  },
+  {
+   "ten": "dang_danh",
+   "can": [
+    "danh_giay"
+   ]
+  },
+  {
+   "ten": "dang_danh",
+   "can": [
+    "tu_dong_chien_dau"
+   ]
+  },
+  {
+   "ten": "doi_hinh",
+   "can": [
+    "doi_hinh_thanh_tich",
+    "doi_hinh_tu_dong",
+    "doi_hinh_chien_dau"
+   ]
+  },
+  {
+   "ten": "man_afk",
+   "can": [
+    "man_afk_tieu_de"
+   ]
+  },
+  {
+   "ten": "ban_do",
+   "can": [
+    "ban_do_che_do",
+    "ban_do_nut_man_afk"
+   ]
+  }
+ ],
+ "nut_them": {
+  "man_afk": [
+   "man_afk_chien_dau",
+   "man_afk_huyen_linh",
+   "nut_quay_lai"
+  ],
+  "doi_hinh": [
+   "tieu_de_mua_giai",
+   "tieu_de_huyen",
+   "nut_quay_lai"
+  ],
+  "thanh_tich": [
+   "tt_mui_ten_phai",
+   "tt_mui_ten_trai",
+   "tt_o_loc_chu",
+   "tt_nam_dam"
+  ],
+  "bai": [
+   "nut_quay_lai",
+   "bai_loi_khuyen"
+  ],
+  "thang": [
+   "nut_quay_lai"
+  ],
+  "dang_danh": [
+   "danh_toc_do",
+   "danh_tam_dung",
+   "tu_dong_chien_dau"
+  ]
+ }
+}

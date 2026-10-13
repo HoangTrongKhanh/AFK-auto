@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Thanh kiếm dựng chéo + mũi tên đi lên (leo ải). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,30L78,30L78,38L50,66L42,58Z" />
+    <path
+        android:fillColor="#F4D35E"
+        android:pathData="M38,56L52,70L48,74L34,60Z M36,68L40,72L34,78L30,74Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,44L38,34L46,44L41,44L41,52L35,52L35,44Z" />
+</vector>

@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Dữ liệu sinh ra khi chạy
+/debug/
+*.log
+
+# Dữ liệu cá nhân sinh ra khi chạy bot (nhật ký trận, ảnh Thành Tích / danh sách tướng đã thu)
+/tran.csv
+/thu_thap_tuong/
+
+# Bản dựng app
+*.apk

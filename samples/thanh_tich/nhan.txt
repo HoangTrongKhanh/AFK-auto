@@ -1,0 +1,22 @@
+# Đội đang chọn trong từng ảnh Thành Tích (chụp 12/10/2026, Tab S7): <file> <lực chiến> <nhãn|-> <lý tưởng 0/1> <thủ công 0/1> <tên>
+# Nhãn: chua_xep_hang | cuc_han | phu_hop | - (không có nhãn). Dùng cho test_thanh_tich.py và tao_mau.py (mẫu chữ số).
+afk_751_01.png 305M chua_xep_hang 0 0 WTF
+afk_751_02.png 300M chua_xep_hang 0 0 CG.Linus
+afk_751_03.png 307M chua_xep_hang 0 0 QuySech
+afk_751_04.png 298M chua_xep_hang 0 0 Casein
+afk_751_05.png 297M chua_xep_hang 0 0 HebiZ
+afk_751_06.png 293M chua_xep_hang 0 0 SM_Shan
+afk_751_07.png 304M chua_xep_hang 0 0 utumrus
+afk_751_08.png 322M chua_xep_hang 0 0 Eris
+afk_751_09.png 289M chua_xep_hang 0 0 S_cute
+afk_751_10.png 384M cuc_han 0 0 r4mb0
+hl_515_01.png 287M phu_hop 1 0 HebiZ
+hl_515_02.png 294M - 0 1 Mazzic
+hl_515_03.png 358M chua_xep_hang 0 1 BupFoMy
+hl_515_04.png 366M chua_xep_hang 0 0 Thoi
+hl_515_05.png 334M chua_xep_hang 0 0 Nzy
+hl_515_06.png 328M chua_xep_hang 0 0 Jankyfusaiya
+hl_515_07.png 344M chua_xep_hang 0 1 CG.Kloe
+hl_515_08.png 305M cuc_han 0 1 ThoHocViec
+hl_515_09.png 321M cuc_han 0 0 Atilol
+hl_515_10.png 311M cuc_han 0 1 WangLin

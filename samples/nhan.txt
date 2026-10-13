@@ -1,0 +1,37 @@
+# Màn hình đúng của từng ảnh mẫu: <file> <man_hinh> [che_do|tu_dong]
+# Dùng cho test_nhan_dien.py.
+tab_s7_ban_do_the_gioi.png ban_do
+tab_s7_bang_phan_thuong_afk.png phan_thuong_afk
+tab_s7_chuyen_canh_thang.png khong_ro
+tab_s7_dang_danh.png dang_danh
+tab_s7_dang_danh_het_gio_0giay.png dang_danh
+tab_s7_dang_danh_huyen_linh.png dang_danh
+tab_s7_doi_hinh_da_sao_chep.png doi_hinh afk
+tab_s7_doi_hinh_huyen_linh.png doi_hinh huyen_linh
+tab_s7_doi_hinh_man_afk.png doi_hinh afk
+tab_s7_game_booster_hien_o_khoa.png khoa
+tab_s7_game_tiet_kiem_pin_nhan_de_tiep_tuc.png nghi
+tab_s7_ket_qua_bai_2.png bai
+tab_s7_ket_qua_bai_bi_phu_toi.png khoa
+tab_s7_ket_qua_bai_het_gio.png bai
+tab_s7_ket_qua_bai_khong_loi_khuyen.png bai
+tab_s7_ket_qua_bai_thu_lai.png bai
+tab_s7_ket_qua_thang.png thang
+tab_s7_man_afk.png man_afk
+tab_s7_man_afk_bi_game_booster_khoa.png khoa
+tab_s7_man_afk_sau_khi_nhan_thuong.png man_afk
+tab_s7_man_afk_sau_khi_thang_752.png man_afk
+tab_s7_man_afk_sau_tran_thua.png man_afk
+tab_s7_thanh_tich_cuc_han_giai_thich.png thanh_tich
+tab_s7_thanh_tich_doi_1.png thanh_tich
+tab_s7_thanh_tich_doi_2.png thanh_tich
+tab_s7_thanh_tich_doi_cuoi_cuc_han.png thanh_tich
+tab_s7_thanh_tich_huyen_linh_doi_chon.png thanh_tich
+tab_s7_thanh_tich_huyen_linh_ly_tuong_phu_hop.png thanh_tich
+tab_s7_thanh_tich_huyen_linh_thu_cong.png thanh_tich
+tab_s7_thanh_tich_loc_da_so_huu.png thanh_tich
+tab_s7_tooltip_giai_doan_2.png man_afk
+tab_s7_tran_bat_dau_tu_dong.png dang_danh tu_dong
+tab_s7_tran_chien_bat_dau.png khong_ro
+tab_s7_thanh_tich_khong_co_ban_ghi.png thanh_tich_trong
+tab_s7_thanh_tich_tuong_chua_so_huu.png thanh_tich
