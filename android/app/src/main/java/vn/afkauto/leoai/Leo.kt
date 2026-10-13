@@ -393,8 +393,8 @@ class Leo(private val svc: BotService) {
         trangThai("${tenCheDo(hien)} · đánh (${moTa(c.doi)})")
         tranInfo = listOf(hien, (tienTrinh ?: "").toString(),
             if (c.doi == null) "có sẵn" else if (c.mangSang) "mang sang" else "chép", (c.viTri ?: "").toString(),
-            moTa(c.doi).replace(",", " "), banGhi?.toString() ?: "", luc?.let { "%.3f".format(it) } ?: "",
-            tyLe?.let { "%.3f".format(it) } ?: "", (c.thua + 1).toString(), c.doi?.thieuKhung.orEmpty().joinToString(";"))
+            moTa(c.doi).replace(",", " "), banGhi?.toString() ?: "", luc?.let { "%.3f".format(java.util.Locale.ROOT, it) } ?: "",
+            tyLe?.let { "%.3f".format(java.util.Locale.ROOT, it) } ?: "", (c.thua + 1).toString(), c.doi?.thieuKhung.orEmpty().joinToString(";"))
         bam(k, if (prefs.tuDong) "doi_hinh_tu_dong" else "doi_hinh_chien_dau", 2000)
         tranTu = now()
         tranCheDo = hien
