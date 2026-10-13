@@ -35,3 +35,4 @@ tab_s7_tran_bat_dau_tu_dong.png dang_danh tu_dong
 tab_s7_tran_chien_bat_dau.png khong_ro
 tab_s7_thanh_tich_khong_co_ban_ghi.png thanh_tich_trong
 tab_s7_thanh_tich_tuong_chua_so_huu.png thanh_tich
+tab_s7_tu_dong_hoan_tat.png tu_dong_hoan_tat

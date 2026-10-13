@@ -74,6 +74,8 @@ MAU = {
     "thang_da_tang": Mau("tab_s7_ket_qua_thang", (415, 1612, 1185, 1698), "giua", 200),
     "thang_chien_dau": Mau("tab_s7_ket_qua_thang", (900, 2360, 1320, 2450), "duoi"),
     "nut_quay_lai": Mau("tab_s7_ket_qua_bai_thu_lai", (40, 2340, 260, 2510), "duoi"),
+    # Bảng "Chiến Đấu Tự Động Hoàn Tất / Đã hoàn thành màn xN" hiện khi tắt chuỗi Chiến Đấu Tự Động (13/10)
+    "tu_dong_hoan_tat": Mau("tab_s7_tu_dong_hoan_tat", (300, 590, 1300, 700), "giua", 200),
     # Màn nghỉ của game, bảng phần thưởng AFK, bản đồ thế giới
     # "Nhấn để tiếp tục" giống "Nhấn để đóng" của bảng Thành Tích tới 0.77 nên cần ngưỡng cao.
     "nghi_nhan_tiep_tuc": Mau("tab_s7_game_tiet_kiem_pin_nhan_de_tiep_tuc", (600, 2380, 1000, 2460), "duoi", nguong=0.9),
@@ -88,6 +90,7 @@ MAN_HINH = [
     ("nghi", ["nghi_nhan_tiep_tuc"]),
     ("phan_thuong_afk", ["thuong_nhan", "thuong_thoi_gian"]),
     ("thanh_tich_trong", ["tt_khong_ban_ghi", "tt_o_loc_chu"]),
+    ("tu_dong_hoan_tat", ["tu_dong_hoan_tat"]),
     ("thanh_tich", ["tt_sao_chep", "tt_nhan_de_dong"]),
     # Nút "Thử Lại" chỉ có ở màn BẠI; mục "Lời Khuyên Chiến Trận" có lúc không hiện (chỉ còn "Tăng Sức Mạnh").
     ("bai", ["bai_thu_lai"]),

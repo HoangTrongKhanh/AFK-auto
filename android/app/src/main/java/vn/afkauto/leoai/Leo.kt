@@ -41,6 +41,7 @@ private const val KHOA_CHO_TRUOC_KHI_CHAM = 2  // màn tối mà chưa thấy �
 private const val LOW_BATTERY = 20
 private const val PIN_KIEM_TRA = 300_000L
 private const val O_LOC_TRAI = 387           // ô tích nằm bên trái dòng chữ lọc (97 so với 484 ở máy gốc)
+private const val O_LOC_DUOI = 30            // bấm mép dưới ô tích: băng "18+" ở góc trên trái che nửa trên và chặn lần bấm
 private const val THIEU_NUT_TOI_DA = 3       // Màn AFK thiếu nút của một phần bấy nhiêu lần liền thì coi phần đó đã hết ải
 private const val DOI_LUC_TOI_DA = 8         // sau khi chép: đọc lực chiến đội tối đa bấy nhiêu lần chờ con số cập nhật
 // Đọc danh sách tướng ở màn đội hình (doc_tuong_cua_toi.py): vuốt chậm ~nửa hàng thẻ ở khe giữa 2 cột (máy gốc).
@@ -187,6 +188,10 @@ class Leo(private val svc: BotService) {
                         "doi_hinh" -> xuLyDoiHinh(img, k)
                         "thanh_tich" -> xuLyThanhTich(k)
                         "thanh_tich_trong" -> xuLyThanhTichTrong(img)
+                        "tu_dong_hoan_tat" -> {
+                            AppLog.i("Bảng Chiến Đấu Tự Động Hoàn Tất - đóng.")
+                            bamDongTrong(img)
+                        }
                         "dang_danh" -> xuLyDangDanh(img)
                         "thang" -> xuLyThang(img, k)
                         "bai" -> xuLyBai(k)
@@ -606,13 +611,8 @@ class Leo(private val svc: BotService) {
      *  đều có tướng chưa sở hữu, nên không có đội nào chép được. */
     private suspend fun xuLyThanhTichTrong(img: Mat) {
         val c = cd.getValue(hien)
-        // Chữ "Nhấn để đóng" của bảng trống nhấp nháy mờ nên không dò bằng mẫu được: bấm thẳng vào chỗ của nó (bám đáy).
-        val w = img.cols()
-        val x = w / 2
-        val y = img.rows() - (REF_H - 2418) * w / REF_W
         if (cheDoChay == CheDoChay.XEM_THANH_TICH) {
-            svc.tap(x, y)
-            delay(CHO_SAU_BAM)
+            bamDongTrong(img)
             throw StopBot("Thành Tích trống: không có đội nào chép được (bản ghi đều có tướng chưa sở hữu).")
         }
         if (c.canDoi) {
@@ -620,7 +620,14 @@ class Leo(private val svc: BotService) {
             c.ket = true
             c.canDoi = false
         }
-        svc.tap(x, y)
+        bamDongTrong(img)
+    }
+
+    /** Chữ "Nhấn để đóng" của bảng Thành Tích trống và bảng Chiến Đấu Tự Động Hoàn Tất nhấp nháy mờ nên không dò bằng
+     *  mẫu được: bấm thẳng vào chỗ của nó (bám đáy). */
+    private suspend fun bamDongTrong(img: Mat) {
+        val w = img.cols()
+        svc.tap(w / 2, img.rows() - (REF_H - 2418) * w / REF_W)
         delay(CHO_SAU_BAM)
     }
 
@@ -689,7 +696,7 @@ class Leo(private val svc: BotService) {
         if (d.locBat == false && "tt_o_loc_chu" in k.nut) {
             AppLog.i("  Bật lọc \"Chỉ hiển thị đội hình đã sở hữu\".")
             val (x, y) = k.nut.getValue("tt_o_loc_chu")
-            svc.tap(x - (O_LOC_TRAI * svc.screenWidth() / REF_W), y)
+            svc.tap(x - (O_LOC_TRAI * svc.screenWidth() / REF_W), y + (O_LOC_DUOI * svc.screenWidth() / REF_W))
             delay(CHO_SAU_BAM)
             return null
         }

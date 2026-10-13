@@ -264,6 +264,17 @@
    "le": 80,
    "nguong": 0.8
   },
+  "tu_dong_hoan_tat": {
+   "hop": [
+    300,
+    590,
+    1300,
+    700
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
   "nghi_nhan_tiep_tuc": {
    "hop": [
     600,
@@ -339,6 +350,12 @@
    "can": [
     "tt_khong_ban_ghi",
     "tt_o_loc_chu"
+   ]
+  },
+  {
+   "ten": "tu_dong_hoan_tat",
+   "can": [
+    "tu_dong_hoan_tat"
    ]
   },
   {

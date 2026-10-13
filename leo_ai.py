@@ -55,6 +55,9 @@ DOI_LUC_TOI_DA = 8          # sau khi chép: đọc lực chiến đội tối �
 TRAN_CSV = BASE / "tran.csv"    # mỗi trận một dòng: để phân tích chênh lệch lực chiến và tỉ lệ thắng
 COT_CSV = ["thoi_gian", "che_do", "ai", "loai", "vi_tri", "doi", "luc_ban_ghi", "luc_doi", "ty_le", "tran_thu",
            "thieu_khung", "ket_qua", "giay"]
+# Ô tích lọc nằm bên trái dòng chữ lọc (97 so với 484 ở máy gốc). Bấm vào mép dưới ô (y 108 so với 78 của chữ): băng
+# "18+" ở góc trên trái (tài khoản thứ hai, 13/10) che nửa trên ô và chặn lần bấm.
+O_LOC_TRAI, O_LOC_DUOI = 387, 30
 MAX_DEBUG_IMAGES = 200
 # --thu-thap-tuong (đợt thu thập một lần để thống kê tướng, xem thong_ke_tuong.py): mỗi lượt lướt Thành Tích một thư mục
 # ảnh trong THU_THAP_DIR, mỗi bản ghi một dòng trong THU_THAP_CSV.
@@ -243,6 +246,10 @@ class LeoAi:
     def xu_ly_phan_thuong_afk(self, img, k):
         log.info("Nhận phần thưởng AFK.")
         self.bam(k, "thuong_nhan")
+
+    def xu_ly_tu_dong_hoan_tat(self, img, k):
+        log.info("Bảng Chiến Đấu Tự Động Hoàn Tất - đóng.")
+        self.bam_dong_trong(img)        # "Nhấn để đóng" cùng chỗ với bảng Thành Tích trống
 
     def xu_ly_ban_do(self, img, k):
         log.info("Đang ở bản đồ thế giới - mở Màn AFK.")
@@ -555,7 +562,8 @@ class LeoAi:
             if o_loc_bat(img) and "tt_o_loc_chu" in k.nut:
                 log.info("  Thành Tích trống khi bật lọc - tắt lọc để thu thập.")
                 x, y = k.nut["tt_o_loc_chu"]
-                self.adb.tap(x - 387 * img.shape[1] / 1600, y)
+                s = img.shape[1] / 1600
+                self.adb.tap(x - O_LOC_TRAI * s, y + O_LOC_DUOI * s)
                 time.sleep(CHO_SAU_BAM)
                 return
             log.info("Thu thập tướng: %s ải %s không có bản ghi nào.", TEN_CHE_DO[self.hien], self.tien_trinh)
@@ -631,7 +639,7 @@ class LeoAi:
             log.info("  %s lọc \"Chỉ hiển thị đội hình đã sở hữu\".", "Bật" if loc else "Tắt")
             x, y = k.nut["tt_o_loc_chu"]
             s = img.shape[1] / 1600
-            self.adb.tap(x - 387 * s, y)            # ô tích nằm bên trái dòng chữ (97 so với 484 ở máy gốc)
+            self.adb.tap(x - O_LOC_TRAI * s, y + O_LOC_DUOI * s)
             time.sleep(CHO_SAU_BAM)
             return None
         for _ in range(SO_DOI_TOI_DA):
