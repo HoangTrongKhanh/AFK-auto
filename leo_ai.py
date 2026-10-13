@@ -54,7 +54,7 @@ THIEU_NUT_TOI_DA = 3        # Màn AFK thiếu nút của một phần bấy nhi
 DOI_LUC_TOI_DA = 8          # sau khi chép: đọc lực chiến đội tối đa bấy nhiêu lần (~1 giây/lần) chờ con số cập nhật
 TRAN_CSV = BASE / "tran.csv"    # mỗi trận một dòng: để phân tích chênh lệch lực chiến và tỉ lệ thắng
 COT_CSV = ["thoi_gian", "che_do", "ai", "loai", "vi_tri", "doi", "luc_ban_ghi", "luc_doi", "ty_le", "tran_thu",
-           "ket_qua", "giay"]
+           "thieu_khung", "ket_qua", "giay"]
 MAX_DEBUG_IMAGES = 200
 # --thu-thap-tuong (đợt thu thập một lần để thống kê tướng, xem thong_ke_tuong.py): mỗi lượt lướt Thành Tích một thư mục
 # ảnh trong THU_THAP_DIR, mỗi bản ghi một dòng trong THU_THAP_CSV.
@@ -328,7 +328,8 @@ class LeoAi:
         self.tran = dict(che_do=self.hien, ai=self.tien_trinh or "", vi_tri=cd.vi_tri or "",
                          loai="có sẵn" if cd.doi is None else "mang sang" if cd.mang_sang else "chép",
                          doi=mo_ta(cd.doi), luc_ban_ghi=ban_ghi or "", luc_doi=f"{luc:.3f}" if luc else "",
-                         ty_le=f"{ty_le:.3f}" if ty_le else "", tran_thu=cd.thua + 1)
+                         ty_le=f"{ty_le:.3f}" if ty_le else "", tran_thu=cd.thua + 1,
+                         thieu_khung=",".join(cd.doi.thieu_khung or []) if cd.doi else "")
         self.bam(k, nut, cho=2.0)
         self.tran_tu = time.monotonic()
         self.tran_che_do = self.hien

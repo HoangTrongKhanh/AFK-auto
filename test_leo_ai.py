@@ -80,16 +80,18 @@ class TestChonDoi(unittest.TestCase):
         cd.da_thu += [ds[0]]
         self.assertEqual(b.chon_doi(ds, cd), 1)
 
-    @unittest.skipUnless((SAMPLES.parent / "thu_thap_tuong" / "tuong_cua_toi.json").exists(),
-                         "chưa có dữ liệu tướng của bạn")
     def test_so_khung_tren_anh_mau(self):
-        """Saida của bạn không khung, bản ghi luôn dùng Saida có khung (đọc 13/10): mọi bản ghi mẫu có Saida bị đánh dấu."""
-        from doc_tuong_cua_toi import SoKhung
-        sk = SoKhung()
+        """Tài khoản thứ nhất (đọc 13/10, android/vision/src/test/resources/cua_toi.json): Saida không khung, bản ghi luôn
+        dùng Saida có khung, nên mọi bản ghi mẫu có Saida bị đánh dấu thiếu khung."""
+        import json
+        from doc_tuong_cua_toi import SoKhung, ThuVien
+        sk = SoKhung.__new__(SoKhung)
+        sk.tv, sk.mat_cua_toi = ThuVien(), []
+        sk.cua_toi = json.loads((SAMPLES.parent / "android/vision/src/test/resources/cua_toi.json").read_text())
         co_saida = {"afk_751_02", "afk_751_05", "afk_751_06", "hl_515_02", "hl_515_05"}
         for f in sorted(THU_MUC.glob("*.png")):
             thieu = sk.thieu(cv2.imread(str(f)))
-            self.assertEqual("Saida" in thieu, f.stem in co_saida, f"{f.name}: {thieu}")
+            self.assertEqual(thieu, ["Saida"] if f.stem in co_saida else [], f.name)
 
 
 class AdbGia:

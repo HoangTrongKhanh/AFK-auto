@@ -128,7 +128,9 @@ class DocThanhTich(private val nd: NhanDien) {
             v.release()
             if (s.length < 2 || !s.dropLast(1).all { it.isDigit() } || s.last() !in "KM") return null
             val so = s.dropLast(1).toLong()
-            return if (s.last() == 'K') so / 1000.0 else so.toDouble()
+            val luc = if (s.last() == 'K') so / 1000.0 else so.toDouble()
+            // Banner "18+ Chơi game quá 180 phút..." có lúc đè lên các chữ số đầu: lực chiến đội dưới 1M là đọc sai.
+            return luc.takeIf { it >= 1.0 }
         } finally {
             if (ref !== img) ref.release()
         }

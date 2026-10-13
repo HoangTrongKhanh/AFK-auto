@@ -33,6 +33,7 @@ RONG_M = 1.28                               # bề rộng chữ M cuối (55 / 4
 RONG_K = 0.95                               # bề rộng chữ K cuối của lực chiến đội ở màn đội hình (33 / 35 px)
 # Lực chiến đội của bạn ở góc trên trái màn đội hình, ví dụ "338,210K" (bám mép trên; dấu phẩy thấp nên tự bị loại).
 VUNG_LUC_DOI = (105, 63, 320, 110)
+LUC_DOI_TOI_THIEU = 1.0                     # lực chiến đội (triệu) thấp hơn mức này là đọc sai
 CHU_KY = (128, 24)                          # chữ ký tên: ảnh nhị phân rộng x cao
 GIONG_TEN = 0.85                            # 2 chữ ký giống nhau >= mức này coi là cùng tên
 # Dải dưới sơ đồ ô: cổ vật (+ vật phẩm Huyền Linh) rồi 5 thẻ tướng. Vị trí thẻ tướng đổi theo số vật phẩm nên lưu cả dải.
@@ -134,7 +135,10 @@ class DocThanhTich:
         s = "".join(self.chu_so.doc_ky_tu(m) for m in tach_luc_chien(_cat(ref, VUNG_LUC_DOI), RONG_K))
         if len(s) < 2 or not s[:-1].isdigit() or s[-1] not in "KM":
             return None
-        return int(s[:-1]) / 1000 if s[-1] == "K" else float(s[:-1])
+        luc = int(s[:-1]) / 1000 if s[-1] == "K" else float(s[:-1])
+        # Banner "18+ Chơi game quá 180 phút..." của game có lúc đè lên các chữ số đầu (13/10, tài khoản thứ 2: "335,055K"
+        # chỉ đọc được "5K"): lực chiến đội dưới 1M là đọc sai.
+        return luc if luc >= LUC_DOI_TOI_THIEU else None
 
     def _moc(self, img):
         """Ảnh đã đưa về chiều rộng máy gốc và độ dời (dx, dy) của bảng so với máy gốc; None nếu không thấy bảng."""
