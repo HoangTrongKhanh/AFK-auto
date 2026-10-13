@@ -114,6 +114,7 @@ class Leo(private val svc: BotService) {
     private var tuDongAi = 0                        // số ải qua được nhờ Tự Động Xử Lý
     private var xuLyTu: Long? = null                // lúc thấy game bắt đầu Tự Động Xử Lý trong chuỗi hiện tại
     private var daTinhChuoi = false                 // đã tính bảng Chiến Đấu Tự Động Hoàn Tất đang hiện
+    private var trongChuoi = false                  // game đang (hoặc vừa) Tự Động Xử Lý, trận thua cuối chuỗi chưa tính
 
     private fun now() = svc.uptime()
 
@@ -186,9 +187,16 @@ class Leo(private val svc: BotService) {
                     if (k.manHinh != "khoa") khoaLan = 0
                     if (k.manHinh != "thang" && k.manHinh != "bai") daTinh = false
                     if (k.manHinh != "tu_dong_hoan_tat") daTinhChuoi = false
+                    // Chuỗi dừng mà không qua ải nào: game không hiện bảng kết quả lẫn màn BẠI, về thẳng màn đội hình.
+                    if (trongChuoi && (k.manHinh == "doi_hinh" || k.manHinh == "man_afk")) thuaChuoi()
                     when (k.manHinh) {
                         "khoa" -> xuLyKhoa(img)
                         "nghi" -> { AppLog.i("Màn nghỉ của game - chạm để tiếp tục."); bam(k, "nghi_nhan_tiep_tuc") }
+                        "bang_ban_goi" -> {
+                            // Bảng bán gói (Kim cương) khi đạt mốc ải: chỉ bấm "Nhấn để thoát", không bao giờ bấm nút mua.
+                            AppLog.i("Bảng bán gói của game - bấm \"Nhấn để thoát\" (không mua gì).")
+                            bam(k, "nhan_de_thoat")
+                        }
                         "phan_thuong_afk" -> { AppLog.i("Nhận phần thưởng AFK."); bam(k, "thuong_nhan") }
                         "ban_do" -> { AppLog.i("Đang ở bản đồ thế giới - mở Màn AFK."); bam(k, "ban_do_nut_man_afk", 3000) }
                         "man_afk" -> xuLyManAfk(img, k)
@@ -198,6 +206,7 @@ class Leo(private val svc: BotService) {
                         "tu_dong_hoan_tat" -> xuLyTuDongHoanTat(img)
                         "xu_ly_ngam" -> xuLyNgam()
                         "xu_ly_xong" -> {
+                            trongChuoi = true
                             // Chuỗi đánh ngầm đã dừng: bấm nút "Tự Động Xử Lý Đã Hoàn Thành!" ở góc dưới trái bản đồ (chỗ
                             // nút Màn Chơi Đỉnh Cao) để mở bảng kết quả.
                             AppLog.i("Tự Động Xử Lý đã dừng - mở bảng kết quả.")
@@ -234,10 +243,13 @@ class Leo(private val svc: BotService) {
         if (cheDoChay == CheDoChay.LEO && dung > 0 && ai >= dung) throw StopBot("Đã tới ải $ai (dừng ở ải $dung theo cài đặt).")
     }
 
-    /** (mức pin %, đang sạc). */
+    /** (mức pin %, đang cắm sạc). Xét "đang cắm nguồn" thay vì BatteryManager.isCharging: đo 14/10 trên Tab S7 cắm củ sạc
+     *  mà game chạy nặng, pin không lên nên isCharging = false dù máy vẫn đang cắm. */
     private fun dangSac(): Pair<Int, Boolean> {
         val bm = svc.getSystemService(BatteryManager::class.java)
-        return bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) to bm.isCharging
+        val tt = svc.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+        val cam = (tt?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0
+        return bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) to (cam || bm.isCharging)
     }
 
     private fun kiemTraPin() {
@@ -504,26 +516,42 @@ class Leo(private val svc: BotService) {
         AppLog.i("Bảng Chiến Đấu Tự Động Hoàn Tất: " +
             (tt?.let { "tiến trình ${it.first} → ${it.second} ($soAi ải)" } ?: "không đọc được tiến trình") + ". Đóng.")
         xuLyTu = null
-        if (tt != null && soAi != null && soAi > 0 && !daTinhChuoi) {
+        if (!daTinhChuoi) {
             daTinhChuoi = true
             val c = cd.getValue(hien)
-            ketThucTran(true, soAi)
-            thang++
-            tuDongAi += soAi
-            sangAiMoi(c, tt.second)
-            // Trận thua cuối chuỗi (màn BẠI hiện sau bảng này) là trận của đội vừa thắng ở ải mới.
-            tranInfo = listOf(hien, tt.second.toString(), "mang sang", (c.viTri ?: "").toString(),
-                moTa(c.doi).replace(",", " "), "", "", "", "1", c.doi?.thieuKhung.orEmpty().joinToString(";"))
-            tranTu = now()
-            tranCheDo = hien
+            if (tt != null && soAi != null && soAi > 0) {
+                ketThucTran(true, soAi)
+                thang++
+                tuDongAi += soAi
+                sangAiMoi(c, tt.second)
+                // Trận thua làm chuỗi dừng là trận của đội vừa thắng ở ải mới (game không hiện màn BẠI).
+                tranInfo = listOf(hien, tt.second.toString(), "mang sang", (c.viTri ?: "").toString(),
+                    moTa(c.doi).replace(",", " "), "", "", "", "1", c.doi?.thieuKhung.orEmpty().joinToString(";"))
+                tranTu = now()
+                tranCheDo = hien
+                trongChuoi = true
+            }
+            if (trongChuoi) thuaChuoi()
             AppLog.i("  [${thongKe()}]")
         }
         bamDongTrong(img)       // "Nhấn để đóng" cùng chỗ với bảng Thành Tích trống
     }
 
+    /** Trận thua làm chuỗi Tự Động Xử Lý dừng (game không hiện màn BẠI): tính như một trận BẠI. */
+    private fun thuaChuoi() {
+        trongChuoi = false
+        val c = cd.getValue(hien)
+        ketThucTran(false)
+        thuaTong++
+        c.thua++
+        AppLog.i("Tự Động Xử Lý dừng ở ải ${tienTrinh ?: "?"}: ${moTa(c.doi)} thua ${c.thua}/${soTranToiDa(c)}.")
+        if (c.thua >= soTranToiDa(c)) c.canDoi = true
+    }
+
     /** Game đang Tự Động Xử Lý: đánh ngầm từng ải tới khi thua, không vẽ cảnh đánh. Không bấm gì (kể cả khi lớp khóa
      *  Game Booster bật: màn hình tối cho đỡ tốn pin), chỉ chụp lại thưa. */
     private suspend fun xuLyNgam() {
+        trongChuoi = true
         if (xuLyTu == null) {
             xuLyTu = now()
             AppLog.i("Game đang Tự Động Xử Lý (đánh ngầm tới khi thua) - chờ.")
@@ -539,6 +567,7 @@ class Leo(private val svc: BotService) {
             return
         }
         val c = cd.getValue(hien)
+        trongChuoi = false
         if (!daTinh) {
             daTinh = true
             val thoiGian = ketThucTran(false)

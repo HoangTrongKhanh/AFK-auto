@@ -158,7 +158,9 @@ class TestTuDong(unittest.TestCase):
         self.assertEqual(b.tien_trinh, 245)
         self.assertTrue(cd.mang_sang)
         self.assertEqual(cd.da_thu, [])
-        self.assertEqual(b.tran["ai"], 245)           # trận thua cuối chuỗi ghi cho ải mới
+        self.assertEqual(b.tk["thua"], 1)             # trận thua làm chuỗi dừng (không có màn BẠI)
+        self.assertEqual(cd.thua, 1)
+        self.assertTrue(cd.can_doi)                    # đội mang sang chỉ được 1 trận: chép đội khác
         self.assertEqual(len(b.adb.bam), 2)
 
 

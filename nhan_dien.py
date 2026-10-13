@@ -86,7 +86,11 @@ MAU = {
     # Đã Hoàn Thành!"; bấm nút đó mở bảng "Đã Hoàn Thành Tự Động Xử Lý" (giống bảng Chiến Đấu Tự Động Hoàn Tất).
     "xu_ly_xong_bong": Mau("tab_s7_ban_do_xu_ly_xong", (75, 2180, 375, 2225), "duoi"),
     "xu_ly_xong_nut": Mau("tab_s7_ban_do_xu_ly_xong", (90, 2515, 170, 2550), "duoi"),
+    "xu_ly_xong_nut_2": Mau("tab_s7_ban_do_xu_ly_xong_2", (75, 2500, 195, 2545), "duoi"),     # "Tự Động Xử Lý Xong!"
     "xu_ly_hoan_tat": Mau("tab_s7_xu_ly_hoan_tat", (165, 600, 775, 690), "giua", 200),
+    # Bảng bán gói (Kim cương) bật lên khi đạt mốc ải, ví dụ "Gói Lầu Ngắm Sao" ở Đỉnh Cao 600 (14/10). Bot chỉ bấm dòng
+    # "Nhấn để thoát" ở đáy, không bao giờ bấm nút mua.
+    "nhan_de_thoat": Mau("tab_s7_goi_ban_nhan_de_thoat", (645, 2385, 955, 2445), "duoi", nguong=0.9),
     # Màn nghỉ của game, bảng phần thưởng AFK, bản đồ thế giới
     # "Nhấn để tiếp tục" giống "Nhấn để đóng" của bảng Thành Tích tới 0.77 nên cần ngưỡng cao.
     "nghi_nhan_tiep_tuc": Mau("tab_s7_game_tiet_kiem_pin_nhan_de_tiep_tuc", (600, 2380, 1000, 2460), "duoi", nguong=0.9),
@@ -100,6 +104,7 @@ MAU = {
 MAN_HINH = [
     ("nghi", ["nghi_nhan_tiep_tuc"]),
     ("phan_thuong_afk", ["thuong_nhan", "thuong_thoi_gian"]),
+    ("bang_ban_goi", ["nhan_de_thoat"]),
     ("xu_ly_ngam", ["xu_ly_man_afk"]),
     ("xu_ly_ngam", ["xu_ly_ban_do"]),
     ("thanh_tich_trong", ["tt_khong_ban_ghi", "tt_o_loc_chu"]),
@@ -107,6 +112,7 @@ MAN_HINH = [
     ("tu_dong_hoan_tat", ["xu_ly_hoan_tat"]),
     ("xu_ly_xong", ["xu_ly_xong_bong"]),
     ("xu_ly_xong", ["xu_ly_xong_nut"]),
+    ("xu_ly_xong", ["xu_ly_xong_nut_2"]),
     ("thanh_tich", ["tt_sao_chep", "tt_nhan_de_dong"]),
     # Nút "Thử Lại" chỉ có ở màn BẠI; mục "Lời Khuyên Chiến Trận" có lúc không hiện (chỉ còn "Tăng Sức Mạnh").
     ("bai", ["bai_thu_lai"]),

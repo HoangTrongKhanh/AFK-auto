@@ -330,6 +330,17 @@
    "le": 80,
    "nguong": 0.8
   },
+  "xu_ly_xong_nut_2": {
+   "hop": [
+    75,
+    2500,
+    195,
+    2545
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
   "xu_ly_hoan_tat": {
    "hop": [
     165,
@@ -340,6 +351,17 @@
    "neo": "giua",
    "le": 200,
    "nguong": 0.8
+  },
+  "nhan_de_thoat": {
+   "hop": [
+    645,
+    2385,
+    955,
+    2445
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.9
   },
   "nghi_nhan_tiep_tuc": {
    "hop": [
@@ -412,6 +434,12 @@
    ]
   },
   {
+   "ten": "bang_ban_goi",
+   "can": [
+    "nhan_de_thoat"
+   ]
+  },
+  {
    "ten": "xu_ly_ngam",
    "can": [
     "xu_ly_man_afk"
@@ -452,6 +480,12 @@
    "ten": "xu_ly_xong",
    "can": [
     "xu_ly_xong_nut"
+   ]
+  },
+  {
+   "ten": "xu_ly_xong",
+   "can": [
+    "xu_ly_xong_nut_2"
    ]
   },
   {

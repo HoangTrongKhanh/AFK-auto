@@ -141,6 +141,7 @@ class LeoAi:
         self.bat_dau = time.monotonic()
         self.tk = dict(tran=0, thang=0, thua=0, chep=0, tu_dong=0)
         self.da_tinh_chuoi = False              # đã tính bảng Chiến Đấu Tự Động Hoàn Tất đang hiện
+        self.trong_chuoi = False                # game đang (hoặc vừa) Tự Động Xử Lý, trận thua cuối chuỗi chưa tính
         self.xu_ly_tu = None                    # lúc thấy game bắt đầu Tự Động Xử Lý (đánh ngầm) trong chuỗi hiện tại
         self.thua_lien_tiep = 0
         self.thieu_ca_hai = 0                   # số lần liền Màn AFK không có nút nào quen thuộc
@@ -222,6 +223,9 @@ class LeoAi:
                 self.da_tinh = False
             if k.man_hinh != "tu_dong_hoan_tat":
                 self.da_tinh_chuoi = False
+            # Chuỗi dừng mà không qua ải nào: game không hiện bảng kết quả lẫn màn BẠI, về thẳng màn đội hình (14/10).
+            if self.trong_chuoi and k.man_hinh in ("doi_hinh", "man_afk"):
+                self.thua_chuoi()
             log.debug("[%s] %s", self.hien, k)
             getattr(self, f"xu_ly_{k.man_hinh}")(img, k)
 
@@ -249,6 +253,11 @@ class LeoAi:
         log.info("Màn nghỉ của game - chạm để tiếp tục.")
         self.bam(k, "nghi_nhan_tiep_tuc")
 
+    def xu_ly_bang_ban_goi(self, img, k):
+        log.info("Bảng bán gói của game - bấm \"Nhấn để thoát\" (không mua gì).")
+        self.luu_anh(img, "bang-ban-goi")
+        self.bam(k, "nhan_de_thoat")
+
     def xu_ly_phan_thuong_afk(self, img, k):
         log.info("Nhận phần thưởng AFK.")
         self.bam(k, "thuong_nhan")
@@ -261,27 +270,45 @@ class LeoAi:
         log.info("Bảng Chiến Đấu Tự Động Hoàn Tất: %s. Đóng.",
                  f"tiến trình {tt[0]} → {tt[1]} ({so_ai} ải)" if tt else "không đọc được tiến trình")
         self.xu_ly_tu = None
-        if so_ai and not self.da_tinh_chuoi:
+        if not self.da_tinh_chuoi:
             self.da_tinh_chuoi = True
             cd = self.cd[self.hien]
-            if self.tran:
-                self.tran["chuoi"] = so_ai
-            self.ket_thuc_tran("thang")
-            self.tk["thang"] += 1
-            self.tk["tu_dong"] += so_ai
-            self.thua_lien_tiep = 0
-            self.sang_ai_moi(cd, tt[1])
-            # Trận thua cuối chuỗi (màn BẠI hiện sau bảng này) là trận của đội vừa thắng ở ải mới.
-            self.tran = dict(che_do=self.hien, ai=tt[1], loai="mang sang", vi_tri=cd.vi_tri or "", doi=mo_ta(cd.doi),
-                             tran_thu=1, thieu_khung=",".join(cd.doi.thieu_khung or []) if cd.doi else "")
-            self.tran_tu = time.monotonic()
-            self.tran_che_do = self.hien
+            if so_ai:
+                if self.tran:
+                    self.tran["chuoi"] = so_ai
+                self.ket_thuc_tran("thang")
+                self.tk["thang"] += 1
+                self.tk["tu_dong"] += so_ai
+                self.thua_lien_tiep = 0
+                self.sang_ai_moi(cd, tt[1])
+                # Trận thua làm chuỗi dừng là trận của đội vừa thắng ở ải mới (game không hiện màn BẠI).
+                self.tran = dict(che_do=self.hien, ai=tt[1], loai="mang sang", vi_tri=cd.vi_tri or "", doi=mo_ta(cd.doi),
+                                 tran_thu=1, thieu_khung=",".join(cd.doi.thieu_khung or []) if cd.doi else "")
+                self.tran_tu = time.monotonic()
+                self.tran_che_do = self.hien
+                self.trong_chuoi = True
+            if self.trong_chuoi:
+                self.thua_chuoi()
             log.info("  [%s]", self.thong_ke())
         self.bam_dong_trong(img)        # "Nhấn để đóng" cùng chỗ với bảng Thành Tích trống
+
+    def thua_chuoi(self):
+        """Trận thua làm chuỗi Tự Động Xử Lý dừng (game không hiện màn BẠI): tính như một trận BẠI."""
+        self.trong_chuoi = False
+        cd = self.cd[self.hien]
+        self.ket_thuc_tran("thua")
+        self.tk["thua"] += 1
+        self.thua_lien_tiep += 1
+        cd.thua += 1
+        log.info("Tự Động Xử Lý dừng ở ải %s: %s thua %d/%d.", self.tien_trinh or "?", mo_ta(cd.doi), cd.thua,
+                 self.so_tran_toi_da(cd))
+        if cd.thua >= self.so_tran_toi_da(cd):
+            cd.can_doi = True
 
     def xu_ly_xu_ly_xong(self, img, k):
         """Chuỗi đánh ngầm đã dừng: bấm nút "Tự Động Xử Lý Đã Hoàn Thành!" ở góc dưới trái bản đồ (chỗ nút Màn Chơi Đỉnh
         Cao) để mở bảng kết quả."""
+        self.trong_chuoi = True
         log.info("Tự Động Xử Lý đã dừng - mở bảng kết quả.")
         h, w = img.shape[:2]
         s = w / 1600
@@ -291,6 +318,7 @@ class LeoAi:
     def xu_ly_xu_ly_ngam(self, img, k):
         """Game đang Tự Động Xử Lý: đánh ngầm từng ải tới khi thua, không vẽ cảnh đánh. Không bấm gì (kể cả khi lớp khóa
         Game Booster bật: màn hình tối cho đỡ tốn pin), chỉ chụp lại thưa."""
+        self.trong_chuoi = True
         if self.xu_ly_tu is None:
             self.xu_ly_tu = time.monotonic()
             log.info("Game đang Tự Động Xử Lý (đánh ngầm tới khi thua) - chờ.")
@@ -500,6 +528,7 @@ class LeoAi:
             self.bam(k, "nut_quay_lai", cho=2.5)
             return
         cd = self.cd[self.hien]
+        self.trong_chuoi = False
         if not self.da_tinh:
             self.da_tinh = True
             thoi_gian = self.ket_thuc_tran("thua")
