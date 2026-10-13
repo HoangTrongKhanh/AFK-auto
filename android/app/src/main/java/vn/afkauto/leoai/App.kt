@@ -56,6 +56,11 @@ class Prefs(context: Context) {
         set(v) = p.edit().putString("thieu_khung", v).apply()
 
     /** Bỏ qua đội Cực Hạn (tỉ lệ thành công thấp) thay vì thử sau cùng. */
+    /** Bắt đầu trận bằng Chiến Đấu Tự Động rồi bấm Tự Động Xử Lý: game đánh ngầm các ải tới khi thua. */
+    var tuDong: Boolean
+        get() = p.getBoolean("tu_dong", true)
+        set(v) = p.edit().putBoolean("tu_dong", v).apply()
+
     var boCucHan: Boolean
         get() = p.getBoolean("bo_cuc_han", false)
         set(v) = p.edit().putBoolean("bo_cuc_han", v).apply()

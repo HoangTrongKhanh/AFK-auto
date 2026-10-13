@@ -93,6 +93,7 @@ class MainActivity : Activity() {
         bindNumber(R.id.gioToiDa, prefs::gioToiDa, GIO_TOI_DA_RANGE)
         bindNumber(R.id.dungOAi, prefs::dungOAi, DUNG_O_AI_RANGE)
         bindCheck(R.id.boCucHan, prefs::boCucHan)
+        bindCheck(R.id.tuDong, prefs::tuDong)
         bindCheck(R.id.saveImages, prefs::saveImages)
         bindCheck(R.id.showProbes, prefs::showProbes)
 

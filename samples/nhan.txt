@@ -36,3 +36,10 @@ tab_s7_tran_chien_bat_dau.png khong_ro
 tab_s7_thanh_tich_khong_co_ban_ghi.png thanh_tich_trong
 tab_s7_thanh_tich_tuong_chua_so_huu.png thanh_tich
 tab_s7_tu_dong_hoan_tat.png tu_dong_hoan_tat
+tab_s7_dang_danh_tu_dong_xu_ly.png dang_danh tu_dong
+tab_s7_ban_do_tu_dong_xu_ly.png xu_ly_ngam
+tab_s7_man_afk_tu_dong_xu_ly.png xu_ly_ngam
+tab_s7_ban_do_tu_dong_xu_ly_khoa.png xu_ly_ngam
+tab_s7_ban_do_xu_ly_xong.png xu_ly_xong
+tab_s7_xu_ly_hoan_tat.png tu_dong_hoan_tat
+tab_s7_ban_do_dinh_cao.png ban_do

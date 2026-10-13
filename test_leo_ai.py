@@ -142,6 +142,26 @@ class TestChepThu(unittest.TestCase):
         self.assertEqual(self.b.adb.bam, [self.k.nut["doi_hinh_chien_dau"]])
 
 
+class TestTuDong(unittest.TestCase):
+    def test_bang_hoan_tat_tinh_cac_ai_da_qua(self):
+        """Bảng Chiến Đấu Tự Động Hoàn Tất 217 → 245: tính 28 ải, sang ải 245 với đội đang dùng, rồi đóng bảng."""
+        b = bot(tu_dong=True)
+        b.adb = AdbGia()
+        b.hien = "afk"
+        cd = b.cd["afk"]
+        cd.thua, cd.da_thu = 0, ["đội cũ"]
+        img = cv2.imread(str(SAMPLES / "tab_s7_tu_dong_hoan_tat.png"))
+        with mock.patch("leo_ai.time.sleep"), mock.patch("leo_ai.TRAN_CSV", SAMPLES.parent / "debug" / "tran_test.csv"):
+            b.xu_ly_tu_dong_hoan_tat(img, b.nd.nhan_dien(img))
+            b.xu_ly_tu_dong_hoan_tat(img, b.nd.nhan_dien(img))        # bảng còn hiện: không tính lại
+        self.assertEqual(b.tk["tu_dong"], 28)
+        self.assertEqual(b.tien_trinh, 245)
+        self.assertTrue(cd.mang_sang)
+        self.assertEqual(cd.da_thu, [])
+        self.assertEqual(b.tran["ai"], 245)           # trận thua cuối chuỗi ghi cho ải mới
+        self.assertEqual(len(b.adb.bam), 2)
+
+
 class TestSoTran(unittest.TestCase):
     def test_doi_mang_sang_it_tran_hon(self):
         b = bot()

@@ -19,6 +19,11 @@ private val DAI_DUONG_AI = Box(0, 1020, 1600, 1110)
 private val MOC_THANG = 800 to 1655
 private val SO_TRUOC = Box(690, 1715, 800, 1790)
 private val SO_SAU = Box(910, 1715, 1035, 1790)
+// Bảng "Chiến Đấu Tự Động Hoàn Tất": cùng dải "Tiến Trình Màn Chơi Đỉnh Cao A → B" như màn THẮNG, mốc là dòng tiêu đề.
+private val MOC_TU_DONG = 800 to 645
+private val MOC_XU_LY = 470 to 645                  // bảng "Đã Hoàn Thành Tự Động Xử Lý" (mốc là chữ "Đã Hoàn Thành")
+private val SO_TRUOC_TD = Box(690, 1135, 800, 1210)
+private val SO_SAU_TD = Box(910, 1135, 1035, 1210)
 
 /** Ảnh nhị phân nhỏ (true = nét), lưu theo hàng. */
 class Bin(val w: Int, val h: Int, val px: BooleanArray) {
@@ -173,9 +178,17 @@ class DocSoAi(private val nd: NhanDien) {
     }
 
     /** (ải trước, ải sau) trong "Tiến Trình Màn Chơi Đỉnh Cao A → B" ở màn THẮNG; null nếu không đọc được. */
-    fun tienTrinhThang(img: Mat): Pair<Int, Int>? = voiMoc(img, "thang_da_tang", MOC_THANG) { ref, dx, dy ->
-        val a = ref.cat(SO_TRUOC.x0 + dx, SO_TRUOC.y0 + dy, SO_TRUOC.x1 + dx, SO_TRUOC.y1 + dy)
-        val b = ref.cat(SO_SAU.x0 + dx, SO_SAU.y0 + dy, SO_SAU.x1 + dx, SO_SAU.y1 + dy)
+    fun tienTrinhThang(img: Mat): Pair<Int, Int>? = tienTrinh(img, "thang_da_tang", MOC_THANG, SO_TRUOC, SO_SAU)
+
+    /** (ải lúc bắt đầu, ải hiện tại) ở bảng Chiến Đấu Tự Động Hoàn Tất; null nếu không đọc được. */
+    fun tienTrinhTuDong(img: Mat): Pair<Int, Int>? =
+        tienTrinh(img, "tu_dong_hoan_tat", MOC_TU_DONG, SO_TRUOC_TD, SO_SAU_TD)
+            ?: tienTrinh(img, "xu_ly_hoan_tat", MOC_XU_LY, SO_TRUOC_TD, SO_SAU_TD)
+
+    private fun tienTrinh(img: Mat, mau: String, moc: Pair<Int, Int>, soTruoc: Box, soSau: Box): Pair<Int, Int>? =
+        voiMoc(img, mau, moc) { ref, dx, dy ->
+        val a = ref.cat(soTruoc.x0 + dx, soTruoc.y0 + dy, soTruoc.x1 + dx, soTruoc.y1 + dy)
+        val b = ref.cat(soSau.x0 + dx, soSau.y0 + dy, soSau.x1 + dx, soSau.y1 + dy)
         val truoc = chuSo.docSo(Bin.xam(a) { it > 200 })
         val sau = chuSo.docSo(Bin.hsv(b, doubleArrayOf(35.0, 80.0, 200.0), doubleArrayOf(85.0, 255.0, 255.0)))
         a.release()

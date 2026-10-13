@@ -43,6 +43,7 @@ log = logging.getLogger("leo_ai")
 CHO_SAU_BAM = 1.5           # giây chờ sau mỗi lần bấm để game kịp đổi màn hình
 CHO_MUI_TEN = 1.2           # chuyển đội trong Thành Tích (có hiệu ứng trượt)
 CHO_DANG_DANH = 3.0         # đang đánh: chụp lại sau bấy nhiêu giây
+CHO_XU_LY = 20.0            # đang Tự Động Xử Lý (game đánh ngầm): chụp lại sau bấy nhiêu giây
 CHO_KHONG_RO = 2.0          # màn hình chưa nhận ra (đang chuyển cảnh): chờ rồi chụp lại
 CHO_MAN_TAT = 20.0          # màn hình tắt / game không ở trên cùng: chờ lâu hơn
 TRAN_TOI_DA = 300           # trận kéo dài hơn bấy nhiêu giây coi là bất thường (trận tối đa ~90 giây trong game)
@@ -54,7 +55,7 @@ THIEU_NUT_TOI_DA = 3        # Màn AFK thiếu nút của một phần bấy nhi
 DOI_LUC_TOI_DA = 8          # sau khi chép: đọc lực chiến đội tối đa bấy nhiêu lần (~1 giây/lần) chờ con số cập nhật
 TRAN_CSV = BASE / "tran.csv"    # mỗi trận một dòng: để phân tích chênh lệch lực chiến và tỉ lệ thắng
 COT_CSV = ["thoi_gian", "che_do", "ai", "loai", "vi_tri", "doi", "luc_ban_ghi", "luc_doi", "ty_le", "tran_thu",
-           "thieu_khung", "ket_qua", "giay"]
+           "thieu_khung", "ket_qua", "chuoi", "giay"]
 # Ô tích lọc nằm bên trái dòng chữ lọc (97 so với 484 ở máy gốc). Bấm vào mép dưới ô (y 108 so với 78 của chữ): băng
 # "18+" ở góc trên trái (tài khoản thứ hai, 13/10) che nửa trên ô và chặn lần bấm.
 O_LOC_TRAI, O_LOC_DUOI = 387, 30
@@ -138,7 +139,9 @@ class LeoAi:
         self.khong_ro_tu = None
         self.da_bao_khong_ro = False
         self.bat_dau = time.monotonic()
-        self.tk = dict(tran=0, thang=0, thua=0, chep=0)
+        self.tk = dict(tran=0, thang=0, thua=0, chep=0, tu_dong=0)
+        self.da_tinh_chuoi = False              # đã tính bảng Chiến Đấu Tự Động Hoàn Tất đang hiện
+        self.xu_ly_tu = None                    # lúc thấy game bắt đầu Tự Động Xử Lý (đánh ngầm) trong chuỗi hiện tại
         self.thua_lien_tiep = 0
         self.thieu_ca_hai = 0                   # số lần liền Màn AFK không có nút nào quen thuộc
         self.vua_chep = False                   # vừa chép đội: lực chiến đội có thể chưa cập nhật
@@ -187,7 +190,8 @@ class LeoAi:
 
     def thong_ke(self):
         phut = (time.monotonic() - self.bat_dau) / 60
-        return (f"{self.tk['tran']} trận, thắng {self.tk['thang']}, thua {self.tk['thua']}, chép đội {self.tk['chep']} lần, "
+        tu_dong = f", {self.tk['tu_dong']} ải nhờ Tự Động Xử Lý" if self.tk["tu_dong"] else ""
+        return (f"{self.tk['tran']} trận, thắng {self.tk['thang']}, thua {self.tk['thua']}, chép đội {self.tk['chep']} lần{tu_dong}, "
                 f"ải {self.tien_trinh or '?'}, {phut:.0f} phút")
 
     def cap_nhat_tien_trinh(self, ai):
@@ -216,6 +220,8 @@ class LeoAi:
                 self.da_bao_khong_ro = False
             if k.man_hinh not in ("thang", "bai"):
                 self.da_tinh = False
+            if k.man_hinh != "tu_dong_hoan_tat":
+                self.da_tinh_chuoi = False
             log.debug("[%s] %s", self.hien, k)
             getattr(self, f"xu_ly_{k.man_hinh}")(img, k)
 
@@ -248,8 +254,49 @@ class LeoAi:
         self.bam(k, "thuong_nhan")
 
     def xu_ly_tu_dong_hoan_tat(self, img, k):
-        log.info("Bảng Chiến Đấu Tự Động Hoàn Tất - đóng.")
+        """Bảng "Chiến Đấu Tự Động Hoàn Tất / Đã hoàn thành màn xN" khi chuỗi tự động dừng (thua, hoặc bạn tắt). Các ải
+        thắng trong chuỗi không có màn THẮNG nên tính ở đây: đội mở đầu chuỗi thắng trận đầu nếu tiến trình tăng."""
+        tt = self.so.tien_trinh_tu_dong(img)
+        so_ai = tt[1] - tt[0] if tt else None
+        log.info("Bảng Chiến Đấu Tự Động Hoàn Tất: %s. Đóng.",
+                 f"tiến trình {tt[0]} → {tt[1]} ({so_ai} ải)" if tt else "không đọc được tiến trình")
+        self.xu_ly_tu = None
+        if so_ai and not self.da_tinh_chuoi:
+            self.da_tinh_chuoi = True
+            cd = self.cd[self.hien]
+            if self.tran:
+                self.tran["chuoi"] = so_ai
+            self.ket_thuc_tran("thang")
+            self.tk["thang"] += 1
+            self.tk["tu_dong"] += so_ai
+            self.thua_lien_tiep = 0
+            self.sang_ai_moi(cd, tt[1])
+            # Trận thua cuối chuỗi (màn BẠI hiện sau bảng này) là trận của đội vừa thắng ở ải mới.
+            self.tran = dict(che_do=self.hien, ai=tt[1], loai="mang sang", vi_tri=cd.vi_tri or "", doi=mo_ta(cd.doi),
+                             tran_thu=1, thieu_khung=",".join(cd.doi.thieu_khung or []) if cd.doi else "")
+            self.tran_tu = time.monotonic()
+            self.tran_che_do = self.hien
+            log.info("  [%s]", self.thong_ke())
         self.bam_dong_trong(img)        # "Nhấn để đóng" cùng chỗ với bảng Thành Tích trống
+
+    def xu_ly_xu_ly_xong(self, img, k):
+        """Chuỗi đánh ngầm đã dừng: bấm nút "Tự Động Xử Lý Đã Hoàn Thành!" ở góc dưới trái bản đồ (chỗ nút Màn Chơi Đỉnh
+        Cao) để mở bảng kết quả."""
+        log.info("Tự Động Xử Lý đã dừng - mở bảng kết quả.")
+        h, w = img.shape[:2]
+        s = w / 1600
+        self.adb.tap(128 * s, h - (2560 - 2490) * s)
+        time.sleep(3.0)
+
+    def xu_ly_xu_ly_ngam(self, img, k):
+        """Game đang Tự Động Xử Lý: đánh ngầm từng ải tới khi thua, không vẽ cảnh đánh. Không bấm gì (kể cả khi lớp khóa
+        Game Booster bật: màn hình tối cho đỡ tốn pin), chỉ chụp lại thưa."""
+        if self.xu_ly_tu is None:
+            self.xu_ly_tu = time.monotonic()
+            log.info("Game đang Tự Động Xử Lý (đánh ngầm tới khi thua) - chờ.")
+        if self.tran_tu is not None:
+            self.tran_tu = time.monotonic()     # chuỗi dài bao lâu cũng không phải trận bị treo
+        time.sleep(CHO_XU_LY)
 
     def xu_ly_ban_do(self, img, k):
         log.info("Đang ở bản đồ thế giới - mở Màn AFK.")
@@ -364,6 +411,11 @@ class LeoAi:
         return luc
 
     def xu_ly_dang_danh(self, img, k):
+        if self.a.tu_dong and k.tu_dong and "nut_tu_dong_xu_ly" in k.nut:
+            # Chiến Đấu Tự Động đang chạy: chuyển sang đánh ngầm (game không vẽ cảnh đánh, đỡ tốn pin).
+            log.info("Bấm Tự Động Xử Lý (game đánh ngầm các ải tiếp theo tới khi thua).")
+            self.bam(k, "nut_tu_dong_xu_ly", cho=3.0)
+            return
         if self.tran_tu is None:
             self.tran_tu = time.monotonic()
             self.tran_che_do = None
@@ -420,26 +472,28 @@ class LeoAi:
                      f"tiến trình {tt[0]} → {tt[1]}" if tt else "(không đọc được tiến trình)", self.thong_ke())
             # Chế độ vừa thắng sang ải mới: thử lại từ đầu, đội vừa thắng giữ nguyên để đánh tiếp. Chế độ kia vẫn ở ải
             # cũ (thắng Huyền Linh 515 xong, nút Chiến Đấu của Màn AFK vẫn là ải 1947M như trước) nên giữ nguyên.
-            cd = self.cd[self.hien]
-            # Không tính đội đang dùng là đã thử ở ải mới: bản ghi của cùng người chơi ở ải mới có thể xếp vị trí khác
-            # (đo 12/10: đội 274M thua 3 trận ở ải 757, chép lại bản ghi 274M của ải 757 thì thắng ngay).
-            cd.da_thu.clear()
-            cd.ket = False
-            cd.can_doi = False
-            cd.thua = 0
-            cd.mang_sang = True
-            cd.vi_tri = None
-            cd.can_thu_thap = True
-            cd.moi_chep = cd.danh_ngay = False
-            cd.hoan.clear()
-            cd.ty_le.clear()
-            cd.vong = 0
-            cd.ds_cu = None
-            if tt:
-                self.cap_nhat_tien_trinh(tt[1])
+            self.sang_ai_moi(self.cd[self.hien], tt[1] if tt else None)
             if self.a.mot_tran:
                 raise Dung("Đã đánh xong 1 trận (--mot-tran).")
         self.bam(k, "thang_chien_dau", cho=2.5)     # đánh ải kế
+
+    def sang_ai_moi(self, cd: CheDo, ai):
+        """Chế độ cd vừa thắng sang ải mới."""
+        # Không tính đội đang dùng là đã thử ở ải mới: bản ghi của cùng người chơi ở ải mới có thể xếp vị trí khác
+        # (đo 12/10: đội 274M thua 3 trận ở ải 757, chép lại bản ghi 274M của ải 757 thì thắng ngay).
+        cd.da_thu.clear()
+        cd.ket = False
+        cd.can_doi = False
+        cd.thua = 0
+        cd.mang_sang = True
+        cd.vi_tri = None
+        cd.can_thu_thap = True
+        cd.moi_chep = cd.danh_ngay = False
+        cd.hoan.clear()
+        cd.ty_le.clear()
+        cd.vong = 0
+        cd.ds_cu = None
+        self.cap_nhat_tien_trinh(ai)
 
     def xu_ly_bai(self, img, k):
         if self.ket_qua_cu("BẠI"):
@@ -768,7 +822,8 @@ def main():
     ap.add_argument("--khong-loc", dest="loc", action="store_false",
                     help="không bật lọc \"Chỉ hiển thị đội hình đã sở hữu\" trong Thành Tích")
     ap.add_argument("--tu-dong", action="store_true",
-                    help="bắt đầu trận bằng Chiến Đấu Tự Động (game tự đánh tiếp khi thắng) thay vì Chiến Đấu")
+                    help="bắt đầu trận bằng Chiến Đấu Tự Động rồi bấm Tự Động Xử Lý: game tự đánh ngầm các ải tiếp theo "
+                         "tới khi thua (không vẽ cảnh đánh, đỡ tốn pin); thua thì bot chép đội như thường")
     ap.add_argument("--dung-o-ai", type=int, help="dừng khi tiến trình tới ải này")
     ap.add_argument("--gio-toi-da", type=float, help="dừng sau bấy nhiêu giờ")
     ap.add_argument("--thua-toi-da", type=int,

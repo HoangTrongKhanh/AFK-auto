@@ -275,6 +275,72 @@
    "le": 200,
    "nguong": 0.8
   },
+  "nut_tu_dong_xu_ly": {
+   "hop": [
+    1320,
+    1540,
+    1490,
+    1600
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "xu_ly_ban_do": {
+   "hop": [
+    5,
+    2460,
+    235,
+    2496
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "xu_ly_man_afk": {
+   "hop": [
+    490,
+    2125,
+    1140,
+    2190
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "xu_ly_xong_bong": {
+   "hop": [
+    75,
+    2180,
+    375,
+    2225
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "xu_ly_xong_nut": {
+   "hop": [
+    90,
+    2515,
+    170,
+    2550
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "xu_ly_hoan_tat": {
+   "hop": [
+    165,
+    600,
+    775,
+    690
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
   "nghi_nhan_tiep_tuc": {
    "hop": [
     600,
@@ -310,14 +376,14 @@
   },
   "ban_do_nut_man_afk": {
    "hop": [
-    0,
-    2390,
-    250,
-    2550
+    10,
+    2462,
+    232,
+    2498
    ],
    "neo": "duoi",
    "le": 80,
-   "nguong": 0.8
+   "nguong": 0.7
   },
   "ban_do_che_do": {
    "hop": [
@@ -346,6 +412,18 @@
    ]
   },
   {
+   "ten": "xu_ly_ngam",
+   "can": [
+    "xu_ly_man_afk"
+   ]
+  },
+  {
+   "ten": "xu_ly_ngam",
+   "can": [
+    "xu_ly_ban_do"
+   ]
+  },
+  {
    "ten": "thanh_tich_trong",
    "can": [
     "tt_khong_ban_ghi",
@@ -356,6 +434,24 @@
    "ten": "tu_dong_hoan_tat",
    "can": [
     "tu_dong_hoan_tat"
+   ]
+  },
+  {
+   "ten": "tu_dong_hoan_tat",
+   "can": [
+    "xu_ly_hoan_tat"
+   ]
+  },
+  {
+   "ten": "xu_ly_xong",
+   "can": [
+    "xu_ly_xong_bong"
+   ]
+  },
+  {
+   "ten": "xu_ly_xong",
+   "can": [
+    "xu_ly_xong_nut"
    ]
   },
   {
@@ -439,7 +535,8 @@
   "dang_danh": [
    "danh_toc_do",
    "danh_tam_dung",
-   "tu_dong_chien_dau"
+   "tu_dong_chien_dau",
+   "nut_tu_dong_xu_ly"
   ]
  }
 }

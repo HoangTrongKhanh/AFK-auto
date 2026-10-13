@@ -16,6 +16,7 @@ AI_MAN_AFK = {
     "tab_s7_man_afk_sau_tran_thua.png": 751,
     "tab_s7_tooltip_giai_doan_2.png": 751,
     "tab_s7_man_afk_sau_khi_thang_752.png": 752,
+    "tab_s7_man_afk_tu_dong_xu_ly.png": 427,
 }
 
 
@@ -34,6 +35,11 @@ class TestSoAi(unittest.TestCase):
 
     def test_tien_trinh_thang(self):
         self.assertEqual(self.d.tien_trinh_thang(self.anh("tab_s7_ket_qua_thang.png")), (751, 752))
+
+    def test_tien_trinh_tu_dong(self):
+        self.assertEqual(self.d.tien_trinh_tu_dong(self.anh("tab_s7_tu_dong_hoan_tat.png")), (217, 245))
+        self.assertEqual(self.d.tien_trinh_tu_dong(self.anh("tab_s7_xu_ly_hoan_tat.png")), (420, 445))
+        self.assertIsNone(self.d.tien_trinh_tu_dong(self.anh("tab_s7_ket_qua_thang.png")))
 
     def test_man_khac_tra_ve_none(self):
         for f in ("tab_s7_doi_hinh_man_afk.png", "tab_s7_ket_qua_bai_thu_lai.png", "tab_s7_man_afk_bi_game_booster_khoa.png"):

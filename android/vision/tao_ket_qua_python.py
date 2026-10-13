@@ -48,7 +48,9 @@ def main():
                          "-" if d.loc_bat is None else str(int(d.loc_bat)), ky])
         ai = so.ai_man_afk(img)
         thang = so.tien_trinh_thang(img)
-        rows.append(["so", rel, "-" if ai is None else str(ai), "-" if thang is None else f"{thang[0]},{thang[1]}"])
+        td = so.tien_trinh_tu_dong(img)
+        rows.append(["so", rel, "-" if ai is None else str(ai), "-" if thang is None else f"{thang[0]},{thang[1]}",
+                     "-" if td is None else f"{td[0]},{td[1]}"])
         ld = tt.luc_doi(img)
         rows.append(["luc_doi", rel, "-" if ld is None else f"{ld:.3f}"])
         khoa = tim_o_khoa(img)

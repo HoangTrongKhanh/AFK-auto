@@ -28,6 +28,11 @@ DAI_DUONG_AI = (0, 1020, 1600, 1110)             # dải số ải dưới đư�
 MOC_THANG = (800, 1655)
 SO_TRUOC = (690, 1715, 800, 1790)                # "751" (màu kem)
 SO_SAU = (910, 1715, 1035, 1790)                 # "752" (màu xanh lá)
+# Bảng "Chiến Đấu Tự Động Hoàn Tất": cùng dải "Tiến Trình Màn Chơi Đỉnh Cao A → B" như màn THẮNG, mốc là dòng tiêu đề.
+MOC_TU_DONG = (800, 645)
+MOC_XU_LY = (470, 645)                            # bảng "Đã Hoàn Thành Tự Động Xử Lý" (mốc là chữ "Đã Hoàn Thành")
+SO_TRUOC_TD = (690, 1135, 800, 1210)
+SO_SAU_TD = (910, 1135, 1035, 1210)
 
 
 def chuan_hoa(p):
@@ -108,7 +113,15 @@ class DocSoAi:
 
     def tien_trinh_thang(self, img):
         """(ải trước, ải sau) trong "Tiến Trình Màn Chơi Đỉnh Cao A → B" ở màn THẮNG; None nếu không đọc được."""
-        r = self._ref(img, "thang_da_tang", MOC_THANG)
+        return self._tien_trinh(img, "thang_da_tang", MOC_THANG, SO_TRUOC, SO_SAU)
+
+    def tien_trinh_tu_dong(self, img):
+        """(ải lúc bắt đầu, ải hiện tại) ở bảng Chiến Đấu Tự Động Hoàn Tất; None nếu không đọc được."""
+        return (self._tien_trinh(img, "tu_dong_hoan_tat", MOC_TU_DONG, SO_TRUOC_TD, SO_SAU_TD)
+                or self._tien_trinh(img, "xu_ly_hoan_tat", MOC_XU_LY, SO_TRUOC_TD, SO_SAU_TD))
+
+    def _tien_trinh(self, img, mau, moc, so_truoc, so_sau):
+        r = self._ref(img, mau, moc)
         if r is None:
             return None
         ref, dx, dy = r
@@ -116,8 +129,8 @@ class DocSoAi:
         def dich(b):
             return (b[0] + dx, b[1] + dy, b[2] + dx, b[3] + dy)
 
-        truoc = self.chu_so.doc_so(cv2.cvtColor(cat(ref, dich(SO_TRUOC)), cv2.COLOR_BGR2GRAY) > 200)
-        sau = self.chu_so.doc_so(hsv_mask(cat(ref, dich(SO_SAU)), (35, 80, 200), (85, 255, 255)))
+        truoc = self.chu_so.doc_so(cv2.cvtColor(cat(ref, dich(so_truoc)), cv2.COLOR_BGR2GRAY) > 200)
+        sau = self.chu_so.doc_so(hsv_mask(cat(ref, dich(so_sau)), (35, 80, 200), (85, 255, 255)))
         if truoc is None or sau is None:
             return None
         return truoc, sau

@@ -31,6 +31,7 @@ private const val CHO_SAU_BAM = 1500L        // chờ sau mỗi lần bấm đ�
 private const val CHO_MUI_TEN = 1200L        // chuyển đội trong Thành Tích (có hiệu ứng trượt)
 private const val CHO_DANG_DANH = 3000L      // đang đánh: chụp lại sau bấy nhiêu ms
 private const val CHO_KHONG_RO = 2000L       // màn hình chưa nhận ra (đang chuyển cảnh): chờ rồi chụp lại
+private const val CHO_XU_LY = 20_000L         // đang Tự Động Xử Lý (game đánh ngầm): chụp lại sau bấy nhiêu ms
 private const val CHO_MAN_TAT = 20_000L      // màn hình tắt / game không ở trên cùng: chờ lâu hơn
 private const val TRAN_TOI_DA = 300_000L     // trận kéo dài hơn bấy nhiêu ms coi là bất thường (trận tối đa ~90 giây)
 private const val KHONG_RO_TOI_DA = 60_000L  // ở màn không nhận ra bấy nhiêu ms thì lưu ảnh và báo
@@ -50,7 +51,7 @@ private const val VUOT_DEN = 2000
 private const val VUOT_TOI_DA = 60
 private const val TEP_TUONG = "tuong_cua_toi.json"
 private const val THU_MUC_MAT = "tuong_cua_toi"
-private const val COT_CSV = "thoi_gian,che_do,ai,loai,vi_tri,doi,luc_ban_ghi,luc_doi,ty_le,tran_thu,ket_qua,giay"
+private const val COT_CSV = "thoi_gian,che_do,ai,loai,vi_tri,doi,luc_ban_ghi,luc_doi,ty_le,tran_thu,thieu_khung,ket_qua,chuoi,giay"
 
 private val TEN_CHE_DO = mapOf("afk" to "Màn AFK", "huyen_linh" to "Thách Đấu Huyền Linh")
 private val NUT_CHE_DO = mapOf("afk" to "man_afk_chien_dau", "huyen_linh" to "man_afk_huyen_linh")
@@ -109,7 +110,10 @@ class Leo(private val svc: BotService) {
     private var thieuCaHai = 0                      // số lần liền Màn AFK không có nút nào quen thuộc
     private var vuaChep = false                     // vừa chép đội: lực chiến đội có thể chưa cập nhật
     private var lucTruoc: Double? = null            // lực chiến đội đọc được ngay trước khi mở Thành Tích
-    private var tranInfo: List<String>? = null      // thông tin trận đang đánh (để ghi tran.csv), trừ 3 cột cuối
+    private var tranInfo: List<String>? = null      // thông tin trận đang đánh (để ghi tran.csv), trừ 4 cột cuối
+    private var tuDongAi = 0                        // số ải qua được nhờ Tự Động Xử Lý
+    private var xuLyTu: Long? = null                // lúc thấy game bắt đầu Tự Động Xử Lý trong chuỗi hiện tại
+    private var daTinhChuoi = false                 // đã tính bảng Chiến Đấu Tự Động Hoàn Tất đang hiện
 
     private fun now() = svc.uptime()
 
@@ -131,7 +135,8 @@ class Leo(private val svc: BotService) {
 
     private fun moTa(d: DoiThanhTich?) = d?.toString() ?: "đội có sẵn"
 
-    private fun thongKe() = "$tran trận, thắng $thang, thua $thuaTong, chép đội $chep lần, ải ${tienTrinh ?: "?"}, " +
+    private fun thongKe() = "$tran trận, thắng $thang, thua $thuaTong, chép đội $chep lần" +
+        (if (tuDongAi > 0) ", $tuDongAi ải nhờ Tự Động Xử Lý" else "") + ", ải ${tienTrinh ?: "?"}, " +
         "${(now() - batDau) / 60_000} phút"
 
     private fun trangThai(viec: String) =
@@ -154,7 +159,8 @@ class Leo(private val svc: BotService) {
         daTinh = false
         khongRoTu = null
         batDau = now()
-        tran = 0; thang = 0; thuaTong = 0; chep = 0
+        tran = 0; thang = 0; thuaTong = 0; chep = 0; tuDongAi = 0
+        xuLyTu = null
         AppLog.i("Bắt đầu leo ${thuTu.joinToString(" + ") { tenCheDo(it) }}. Mỗi đội thử ${prefs.thuLai} trận " +
             "(đội mang sang ải mới ${prefs.thuLaiDoiCu} trận), rồi chép đội khác từ Thành Tích.")
         daThuDocTuong = false
@@ -179,6 +185,7 @@ class Leo(private val svc: BotService) {
                     }
                     if (k.manHinh != "khoa") khoaLan = 0
                     if (k.manHinh != "thang" && k.manHinh != "bai") daTinh = false
+                    if (k.manHinh != "tu_dong_hoan_tat") daTinhChuoi = false
                     when (k.manHinh) {
                         "khoa" -> xuLyKhoa(img)
                         "nghi" -> { AppLog.i("Màn nghỉ của game - chạm để tiếp tục."); bam(k, "nghi_nhan_tiep_tuc") }
@@ -188,11 +195,17 @@ class Leo(private val svc: BotService) {
                         "doi_hinh" -> xuLyDoiHinh(img, k)
                         "thanh_tich" -> xuLyThanhTich(k)
                         "thanh_tich_trong" -> xuLyThanhTichTrong(img)
-                        "tu_dong_hoan_tat" -> {
-                            AppLog.i("Bảng Chiến Đấu Tự Động Hoàn Tất - đóng.")
-                            bamDongTrong(img)
+                        "tu_dong_hoan_tat" -> xuLyTuDongHoanTat(img)
+                        "xu_ly_ngam" -> xuLyNgam()
+                        "xu_ly_xong" -> {
+                            // Chuỗi đánh ngầm đã dừng: bấm nút "Tự Động Xử Lý Đã Hoàn Thành!" ở góc dưới trái bản đồ (chỗ
+                            // nút Màn Chơi Đỉnh Cao) để mở bảng kết quả.
+                            AppLog.i("Tự Động Xử Lý đã dừng - mở bảng kết quả.")
+                            val w = img.cols()
+                            svc.tap(128 * w / REF_W, img.rows() - (REF_H - 2490) * w / REF_W)
+                            delay(3000)
                         }
-                        "dang_danh" -> xuLyDangDanh(img)
+                        "dang_danh" -> xuLyDangDanh(img, k)
                         "thang" -> xuLyThang(img, k)
                         "bai" -> xuLyBai(k)
                         else -> xuLyKhongRo(img)
@@ -367,8 +380,8 @@ class Leo(private val svc: BotService) {
         tranInfo = listOf(hien, (tienTrinh ?: "").toString(),
             if (c.doi == null) "có sẵn" else if (c.mangSang) "mang sang" else "chép", (c.viTri ?: "").toString(),
             moTa(c.doi).replace(",", " "), banGhi?.toString() ?: "", luc?.let { "%.3f".format(it) } ?: "",
-            tyLe?.let { "%.3f".format(it) } ?: "", (c.thua + 1).toString())
-        bam(k, "doi_hinh_chien_dau", 2000)
+            tyLe?.let { "%.3f".format(it) } ?: "", (c.thua + 1).toString(), c.doi?.thieuKhung.orEmpty().joinToString(";"))
+        bam(k, if (prefs.tuDong) "doi_hinh_tu_dong" else "doi_hinh_chien_dau", 2000)
         tranTu = now()
         tranCheDo = hien
         c.daDanh = true
@@ -395,18 +408,24 @@ class Leo(private val svc: BotService) {
     }
 
     /** Ghi một dòng vào tran.csv (thư mục files của app) để phân tích chênh lệch lực chiến và tỉ lệ thắng. */
-    private fun ghiTran(ketQua: String, giay: Long?) {
+    private fun ghiTran(ketQua: String, giay: Long?, chuoi: Int? = null) {
         val info = tranInfo ?: return
         tranInfo = null
         runCatching {
             val f = java.io.File(svc.getExternalFilesDir(null), "tran.csv")
             if (!f.exists()) f.writeText(COT_CSV + "\n")
             val tg = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-            f.appendText((listOf(tg) + info + listOf(ketQua, giay?.toString() ?: "")).joinToString(",") + "\n")
+            f.appendText((listOf(tg) + info + listOf(ketQua, chuoi?.toString() ?: "", giay?.toString() ?: "")).joinToString(",") + "\n")
         }
     }
 
-    private suspend fun xuLyDangDanh(img: Mat) {
+    private suspend fun xuLyDangDanh(img: Mat, k: KetQua) {
+        if (prefs.tuDong && k.tuDong && "nut_tu_dong_xu_ly" in k.nut) {
+            // Chiến Đấu Tự Động đang chạy: chuyển sang đánh ngầm (game không vẽ cảnh đánh, đỡ tốn pin).
+            AppLog.i("Bấm Tự Động Xử Lý (game đánh ngầm các ải tiếp theo tới khi thua).")
+            bam(k, "nut_tu_dong_xu_ly", 3000)
+            return
+        }
         val t = tranTu
         if (t == null) {
             tranTu = now()
@@ -422,13 +441,13 @@ class Leo(private val svc: BotService) {
 
     private fun soTranToiDa(c: CheDo) = if (c.mangSang) prefs.thuLaiDoiCu else prefs.thuLai
 
-    private fun ketThucTran(win: Boolean): String {
+    private fun ketThucTran(win: Boolean, chuoi: Int? = null): String {
         val giay = tranTu?.let { (now() - it) / 1000 }
         tranTu = null
         tranCheDo = null
         tran++
         prefs.addBattle(win)
-        ghiTran(if (win) "thang" else "thua", giay)
+        ghiTran(if (win) "thang" else "thua", giay, chuoi)
         return giay?.let { " ($it giây)" } ?: ""
     }
 
@@ -455,23 +474,63 @@ class Leo(private val svc: BotService) {
             val tien = cpu { so.tienTrinhThang(img) }
             AppLog.i("THẮNG$thoiGian! ${tenCheDo(hien)} " +
                 (tien?.let { "tiến trình ${it.first} → ${it.second}" } ?: "(không đọc được tiến trình)") + ". [${thongKe()}]")
-            // Chế độ vừa thắng sang ải mới: thử lại từ đầu, đội vừa thắng giữ nguyên để đánh tiếp. Không tính đội đang
-            // dùng là đã thử: bản ghi của cùng người chơi ở ải mới có thể xếp vị trí khác. Chế độ kia vẫn ở ải cũ.
-            val c = cd.getValue(hien)
-            c.daThu.clear()
-            c.ket = false
-            c.canDoi = false
-            c.thua = 0
-            c.mangSang = true
-            c.viTri = null
-            c.moiChep = false; c.danhNgay = false
-            c.hoan.clear(); c.tyLe.clear()
-            c.vong = 0
-            c.dsCu = null
-            tien?.let { capNhatTienTrinh(it.second) }
+            sangAiMoi(cd.getValue(hien), tien?.second)
             if (cheDoChay == CheDoChay.MOT_TRAN) throw StopBot("Đã đánh xong 1 trận: THẮNG.")
         }
         bam(k, "thang_chien_dau", 2500)             // đánh ải kế
+    }
+
+    /** Chế độ c vừa thắng sang ải mới: thử lại từ đầu, đội vừa thắng giữ nguyên để đánh tiếp. Không tính đội đang dùng
+     *  là đã thử: bản ghi của cùng người chơi ở ải mới có thể xếp vị trí khác. Chế độ kia vẫn ở ải cũ. */
+    private fun sangAiMoi(c: CheDo, ai: Int?) {
+        c.daThu.clear()
+        c.ket = false
+        c.canDoi = false
+        c.thua = 0
+        c.mangSang = true
+        c.viTri = null
+        c.moiChep = false; c.danhNgay = false
+        c.hoan.clear(); c.tyLe.clear()
+        c.vong = 0
+        c.dsCu = null
+        ai?.let { capNhatTienTrinh(it) }
+    }
+
+    /** Bảng "Chiến Đấu Tự Động Hoàn Tất / Đã hoàn thành màn xN" khi chuỗi tự động dừng (thua, hoặc bạn tắt). Các ải thắng
+     *  trong chuỗi không có màn THẮNG nên tính ở đây: đội mở đầu chuỗi thắng trận đầu nếu tiến trình tăng. */
+    private suspend fun xuLyTuDongHoanTat(img: Mat) {
+        val tt = cpu { so.tienTrinhTuDong(img) }
+        val soAi = tt?.let { it.second - it.first }
+        AppLog.i("Bảng Chiến Đấu Tự Động Hoàn Tất: " +
+            (tt?.let { "tiến trình ${it.first} → ${it.second} ($soAi ải)" } ?: "không đọc được tiến trình") + ". Đóng.")
+        xuLyTu = null
+        if (tt != null && soAi != null && soAi > 0 && !daTinhChuoi) {
+            daTinhChuoi = true
+            val c = cd.getValue(hien)
+            ketThucTran(true, soAi)
+            thang++
+            tuDongAi += soAi
+            sangAiMoi(c, tt.second)
+            // Trận thua cuối chuỗi (màn BẠI hiện sau bảng này) là trận của đội vừa thắng ở ải mới.
+            tranInfo = listOf(hien, tt.second.toString(), "mang sang", (c.viTri ?: "").toString(),
+                moTa(c.doi).replace(",", " "), "", "", "", "1", c.doi?.thieuKhung.orEmpty().joinToString(";"))
+            tranTu = now()
+            tranCheDo = hien
+            AppLog.i("  [${thongKe()}]")
+        }
+        bamDongTrong(img)       // "Nhấn để đóng" cùng chỗ với bảng Thành Tích trống
+    }
+
+    /** Game đang Tự Động Xử Lý: đánh ngầm từng ải tới khi thua, không vẽ cảnh đánh. Không bấm gì (kể cả khi lớp khóa
+     *  Game Booster bật: màn hình tối cho đỡ tốn pin), chỉ chụp lại thưa. */
+    private suspend fun xuLyNgam() {
+        if (xuLyTu == null) {
+            xuLyTu = now()
+            AppLog.i("Game đang Tự Động Xử Lý (đánh ngầm tới khi thua) - chờ.")
+            trangThai("${tenCheDo(hien)} · Tự Động Xử Lý")
+        }
+        if (tranTu != null) tranTu = now()      // chuỗi dài bao lâu cũng không phải trận bị treo
+        delay(CHO_XU_LY)
     }
 
     private suspend fun xuLyBai(k: KetQua) {

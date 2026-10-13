@@ -195,6 +195,12 @@
         </RadioGroup>
 
         <CheckBox
+            android:id="@+id/tuDong"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tự Động Xử Lý: đội đang dùng còn thắng thì để game tự đánh ngầm (không vẽ cảnh đánh, đỡ tốn pin), thua mới chép đội" />
+
+        <CheckBox
             android:id="@+id/boCucHan"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

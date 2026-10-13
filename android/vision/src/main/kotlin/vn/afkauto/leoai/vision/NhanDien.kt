@@ -19,6 +19,8 @@ const val WORK_W = 800                      // tìm mẫu trên ảnh thu nhỏ 
 const val WORK = WORK_W.toDouble() / REF_W
 // Lớp khóa Game Booster làm tối cả màn hình: độ sáng trung bình 35-42 khi bị khóa, màn bình thường >= 84.
 const val LOCKED_BRIGHTNESS = 60.0
+/** Mẫu vẫn dò khi màn hình tối (bị khóa): đang Tự Động Xử Lý. */
+val XU_LY_TOI = listOf("xu_ly_ban_do", "xu_ly_man_afk")
 
 data class Box(val x0: Int, val y0: Int, val x1: Int, val y1: Int) {
     val width get() = x1 - x0
@@ -169,8 +171,20 @@ class NhanDien(val bo: BoMau) {
 
     fun nhanDien(img: Mat): KetQua {
         val sang = grayMean(img)
-        if (sang < LOCKED_BRIGHTNESS) return KetQua("khoa", emptyMap(), emptyMap(), sang, null)
         val (small, k) = thuNho(img)
+        if (sang < LOCKED_BRIGHTNESS) {
+            // Lớp khóa Game Booster chỉ làm tối đều màn hình nên mẫu vẫn khớp (TM_CCOEFF_NORMED không đổi khi độ sáng đổi
+            // tuyến tính). Đang Tự Động Xử Lý thì không cần mở khóa: game tự đánh ngầm, để màn hình tối cho đỡ tốn pin.
+            for (ten in XU_LY_TOI) {
+                val kq = tim(small, ten)
+                if (kq.coViTri && kq.diem >= bo.mau.getValue(ten).nguong) {
+                    small.release()
+                    return KetQua("xu_ly_ngam", mapOf(ten to (pyRound(kq.x / k) to pyRound(kq.y / k))), mapOf(ten to kq.diem), sang, null)
+                }
+            }
+            small.release()
+            return KetQua("khoa", emptyMap(), emptyMap(), sang, null)
+        }
         val khop = LinkedHashMap<String, Khop>()
         fun thay(ten: String): Boolean {
             val kq = khop.getOrPut(ten) { tim(small, ten) }

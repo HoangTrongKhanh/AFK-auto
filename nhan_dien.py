@@ -76,12 +76,23 @@ MAU = {
     "nut_quay_lai": Mau("tab_s7_ket_qua_bai_thu_lai", (40, 2340, 260, 2510), "duoi"),
     # Bảng "Chiến Đấu Tự Động Hoàn Tất / Đã hoàn thành màn xN" hiện khi tắt chuỗi Chiến Đấu Tự Động (13/10)
     "tu_dong_hoan_tat": Mau("tab_s7_tu_dong_hoan_tat", (300, 590, 1300, 700), "giua", 200),
+    # Tự Động Xử Lý (13/10): trong trận Chiến Đấu Tự Động có nút "Tự Động Xử Lý" bên phải; bấm vào thì game về bản đồ
+    # thế giới (hoặc Màn AFK) và đánh ngầm tiếp các ải, không vẽ cảnh đánh. Lúc đó góc dưới trái bản đồ ghi
+    # "Tự Động Xử Lý..." còn Màn AFK có dải "Đang Tự Động Xử Lý..." thay cho các nút Chiến Đấu.
+    "nut_tu_dong_xu_ly": Mau("tab_s7_dang_danh_tu_dong_xu_ly", (1320, 1540, 1490, 1600), "giua", 200),
+    "xu_ly_ban_do": Mau("tab_s7_ban_do_tu_dong_xu_ly", (5, 2460, 235, 2496), "duoi"),
+    "xu_ly_man_afk": Mau("tab_s7_man_afk_tu_dong_xu_ly", (490, 2125, 1140, 2190), "duoi"),
+    # Chuỗi đánh ngầm đã dừng (thua): bản đồ có bong bóng "Đã hoàn thành Màn xN!" và nút góc dưới trái ghi "Tự Động Xử Lý
+    # Đã Hoàn Thành!"; bấm nút đó mở bảng "Đã Hoàn Thành Tự Động Xử Lý" (giống bảng Chiến Đấu Tự Động Hoàn Tất).
+    "xu_ly_xong_bong": Mau("tab_s7_ban_do_xu_ly_xong", (75, 2180, 375, 2225), "duoi"),
+    "xu_ly_xong_nut": Mau("tab_s7_ban_do_xu_ly_xong", (90, 2515, 170, 2550), "duoi"),
+    "xu_ly_hoan_tat": Mau("tab_s7_xu_ly_hoan_tat", (165, 600, 775, 690), "giua", 200),
     # Màn nghỉ của game, bảng phần thưởng AFK, bản đồ thế giới
     # "Nhấn để tiếp tục" giống "Nhấn để đóng" của bảng Thành Tích tới 0.77 nên cần ngưỡng cao.
     "nghi_nhan_tiep_tuc": Mau("tab_s7_game_tiet_kiem_pin_nhan_de_tiep_tuc", (600, 2380, 1000, 2460), "duoi", nguong=0.9),
     "thuong_nhan": Mau("tab_s7_bang_phan_thuong_afk", (680, 1370, 920, 1500), "giua", 200),
     "thuong_thoi_gian": Mau("tab_s7_bang_phan_thuong_afk", (1080, 800, 1410, 880), "giua", 200),
-    "ban_do_nut_man_afk": Mau("tab_s7_ban_do_the_gioi", (0, 2390, 250, 2550), "duoi"),
+    "ban_do_nut_man_afk": Mau("tab_s7_ban_do_dinh_cao", (10, 2462, 232, 2498), "duoi", nguong=0.7),     # chữ "Màn Chơi Đỉnh Cao" (hình và số ải đổi)
     "ban_do_che_do": Mau("tab_s7_ban_do_the_gioi", (600, 2400, 800, 2550), "duoi"),
 }
 
@@ -89,8 +100,13 @@ MAU = {
 MAN_HINH = [
     ("nghi", ["nghi_nhan_tiep_tuc"]),
     ("phan_thuong_afk", ["thuong_nhan", "thuong_thoi_gian"]),
+    ("xu_ly_ngam", ["xu_ly_man_afk"]),
+    ("xu_ly_ngam", ["xu_ly_ban_do"]),
     ("thanh_tich_trong", ["tt_khong_ban_ghi", "tt_o_loc_chu"]),
     ("tu_dong_hoan_tat", ["tu_dong_hoan_tat"]),
+    ("tu_dong_hoan_tat", ["xu_ly_hoan_tat"]),
+    ("xu_ly_xong", ["xu_ly_xong_bong"]),
+    ("xu_ly_xong", ["xu_ly_xong_nut"]),
     ("thanh_tich", ["tt_sao_chep", "tt_nhan_de_dong"]),
     # Nút "Thử Lại" chỉ có ở màn BẠI; mục "Lời Khuyên Chiến Trận" có lúc không hiện (chỉ còn "Tăng Sức Mạnh").
     ("bai", ["bai_thu_lai"]),
@@ -104,13 +120,15 @@ MAN_HINH = [
     ("ban_do", ["ban_do_che_do", "ban_do_nut_man_afk"]),
 ]
 # Mẫu cần tìm thêm (để lấy vị trí bấm) khi đã biết màn hình.
+XU_LY_TOI = ["xu_ly_ban_do", "xu_ly_man_afk"]     # mẫu vẫn dò khi màn hình tối (bị khóa)
+
 NUT_THEM = {
     "man_afk": ["man_afk_chien_dau", "man_afk_huyen_linh", "nut_quay_lai"],
     "doi_hinh": ["tieu_de_mua_giai", "tieu_de_huyen", "nut_quay_lai"],
     "thanh_tich": ["tt_mui_ten_phai", "tt_mui_ten_trai", "tt_o_loc_chu", "tt_nam_dam"],
     "bai": ["nut_quay_lai", "bai_loi_khuyen"],
     "thang": ["nut_quay_lai"],
-    "dang_danh": ["danh_toc_do", "danh_tam_dung", "tu_dong_chien_dau"],
+    "dang_danh": ["danh_toc_do", "danh_tam_dung", "tu_dong_chien_dau", "nut_tu_dong_xu_ly"],
 }
 
 
@@ -178,9 +196,16 @@ class NhanDien:
 
     def nhan_dien(self, img) -> KetQua:
         sang = float(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).mean())
-        if sang < LOCKED_BRIGHTNESS:
-            return KetQua("khoa", do_sang=sang)
         small, k = self._thu_nho(img)
+        if sang < LOCKED_BRIGHTNESS:
+            # Lớp khóa Game Booster chỉ làm tối đều màn hình nên mẫu vẫn khớp (TM_CCOEFF_NORMED không đổi khi độ sáng đổi
+            # tuyến tính; đo 13/10: "Tự Động Xử Lý..." trên bản đồ bị khóa khớp 0.92). Đang Tự Động Xử Lý thì không cần mở
+            # khóa: game tự đánh ngầm, để màn hình tối cho đỡ tốn pin.
+            for ten in XU_LY_TOI:
+                diem, vt = self.tim(small, ten)
+                if diem >= MAU[ten].nguong:
+                    return KetQua("xu_ly_ngam", do_sang=sang, nut={ten: (round(vt[0] / k), round(vt[1] / k))})
+            return KetQua("khoa", do_sang=sang)
         diem, vitri = {}, {}
 
         def thay(ten):

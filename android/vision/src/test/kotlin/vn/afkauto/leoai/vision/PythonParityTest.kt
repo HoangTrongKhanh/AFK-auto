@@ -112,6 +112,7 @@ class PythonParityTest {
             val img = image(r[1])
             assertEquals(r[2].takeIf { it != "-" }?.toInt(), so.aiManAfk(img), "${r[1]}: ải Màn AFK")
             assertEquals(r[3].takeIf { it != "-" }?.let(::xy), so.tienTrinhThang(img), "${r[1]}: tiến trình thắng")
+            assertEquals(r[4].takeIf { it != "-" }?.let(::xy), so.tienTrinhTuDong(img), "${r[1]}: tiến trình tự động")
         }
     }
 
