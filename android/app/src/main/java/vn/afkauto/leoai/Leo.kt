@@ -4,14 +4,27 @@ import android.os.BatteryManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import org.opencv.core.Core
 import org.opencv.core.Mat
+import org.opencv.imgcodecs.Imgcodecs
+import vn.afkauto.leoai.vision.DocDanhSach
 import vn.afkauto.leoai.vision.DocSoAi
 import vn.afkauto.leoai.vision.DocThanhTich
 import vn.afkauto.leoai.vision.DoiThanhTich
+import vn.afkauto.leoai.vision.KHE_X
 import vn.afkauto.leoai.vision.KetQua
+import vn.afkauto.leoai.vision.REF_H
 import vn.afkauto.leoai.vision.REF_W
+import vn.afkauto.leoai.vision.SoKhung
+import vn.afkauto.leoai.vision.ThuVienTuong
 import vn.afkauto.leoai.vision.cungDoi
+import vn.afkauto.leoai.vision.daiTuong
+import vn.afkauto.leoai.vision.decodeImage
 import vn.afkauto.leoai.vision.timOKhoa
+import vn.afkauto.leoai.vision.vungDanhSach
+import java.io.File
 
 // Chuyển từ leo_ai.py (bản máy tính đã chạy thật 12/10/2026: Màn AFK 754 → 765, Huyền Linh 765 → 769).
 private const val CHO_SAU_BAM = 1500L        // chờ sau mỗi lần bấm để game kịp đổi màn hình
@@ -30,6 +43,12 @@ private const val PIN_KIEM_TRA = 300_000L
 private const val O_LOC_TRAI = 387           // ô tích nằm bên trái dòng chữ lọc (97 so với 484 ở máy gốc)
 private const val THIEU_NUT_TOI_DA = 3       // Màn AFK thiếu nút của một phần bấy nhiêu lần liền thì coi phần đó đã hết ải
 private const val DOI_LUC_TOI_DA = 8         // sau khi chép: đọc lực chiến đội tối đa bấy nhiêu lần chờ con số cập nhật
+// Đọc danh sách tướng ở màn đội hình (doc_tuong_cua_toi.py): vuốt chậm ~nửa hàng thẻ ở khe giữa 2 cột (máy gốc).
+private const val VUOT_TU = 2150
+private const val VUOT_DEN = 2000
+private const val VUOT_TOI_DA = 60
+private const val TEP_TUONG = "tuong_cua_toi.json"
+private const val THU_MUC_MAT = "tuong_cua_toi"
 private const val COT_CSV = "thoi_gian,che_do,ai,loai,vi_tri,doi,luc_ban_ghi,luc_doi,ty_le,tran_thu,ket_qua,giay"
 
 private val TEN_CHE_DO = mapOf("afk" to "Màn AFK", "huyen_linh" to "Thách Đấu Huyền Linh")
@@ -50,11 +69,23 @@ class Leo(private val svc: BotService) {
         var het = false                             // phần này đã hết ải trong giai đoạn (Màn AFK không còn nút của nó)
         var thieuNut = 0                            // số lần liền vào Màn AFK mà không thấy nút của phần này
         var viTri: Int? = null                      // vị trí trong Thành Tích của đội đang dùng lúc chép (1 = đầu)
+        // Chép thử (cài đặt nguongLuc): đội vừa chép mà lực chiến đội bạn thấp hơn ngưỡng so với bản ghi thì chưa đánh,
+        // chép thử đội khác; hết đội thì đánh các đội đã hoãn theo tỉ lệ lực chiến giảm dần.
+        var moiChep = false                         // vừa chép, chưa vào màn đội hình để đọc lực chiến
+        var danhNgay = false                        // đội vừa chép là đội đã hoãn (hoặc vòng sau): đánh luôn
+        val hoan = mutableListOf<Pair<DoiThanhTich, Double>>()   // đã chép thử nhưng chưa đánh
+        val tyLe = mutableListOf<Pair<DoiThanhTich, Double>>()   // mọi đội đã chép ở ải này
+        var vong = 0                                // vòng thử đội trong Thành Tích ở ải này (0 = vòng đầu)
+        var dsCu: List<DoiThanhTich>? = null        // danh sách Thành Tích đọc lần trước ở ải này
+        var daDanh = true                           // đã đánh trận kể từ lần đọc dsCu (game có thể đã đổi thứ tự)
     }
 
     private val nd get() = svc.nd
     private val tt by lazy { DocThanhTich(svc.nd) }
     private val so by lazy { DocSoAi(svc.nd) }
+    private val thuVien by lazy { ThuVienTuong.load { name -> svc.assets.open(name).use { it.readBytes() } } }
+    private var soKhung: SoKhung? = null
+    private var daThuDocTuong = false               // đã tự đọc danh sách tướng trong lần chạy này
     private val prefs get() = svc.prefs
 
     private var cheDoChay = CheDoChay.LEO
@@ -89,7 +120,8 @@ class Leo(private val svc: BotService) {
     }
 
     private suspend fun bam(k: KetQua, nut: String, cho: Long = CHO_SAU_BAM) {
-        val (x, y) = k.nut.getValue(nut)
+        // Màn hình đang chuyển (ví dụ màn BẠI vừa bấm ← xong: nút đã mờ đi nhưng chữ BẠI còn): chờ rồi chụp lại.
+        val (x, y) = k.nut[nut] ?: run { delay(CHO_KHONG_RO); return }
         svc.tap(x, y)
         delay(cho)
     }
@@ -124,6 +156,8 @@ class Leo(private val svc: BotService) {
         tran = 0; thang = 0; thuaTong = 0; chep = 0
         AppLog.i("Bắt đầu leo ${thuTu.joinToString(" + ") { tenCheDo(it) }}. Mỗi đội thử ${prefs.thuLai} trận " +
             "(đội mang sang ải mới ${prefs.thuLaiDoiCu} trận), rồi chép đội khác từ Thành Tích.")
+        daThuDocTuong = false
+        soKhung = if (prefs.thieuKhung == "thu") null else napSoKhung()
         if (!dangSac().second) AppLog.i("Máy không cắm sạc: nên cắm sạc khi để bot chạy lâu.")
         try {
             while (true) {
@@ -152,6 +186,7 @@ class Leo(private val svc: BotService) {
                         "man_afk" -> xuLyManAfk(img, k)
                         "doi_hinh" -> xuLyDoiHinh(img, k)
                         "thanh_tich" -> xuLyThanhTich(k)
+                        "thanh_tich_trong" -> xuLyThanhTichTrong(img)
                         "dang_danh" -> xuLyDangDanh(img)
                         "thang" -> xuLyThang(img, k)
                         "bai" -> xuLyBai(k)
@@ -287,6 +322,14 @@ class Leo(private val svc: BotService) {
             bam(k, "nut_quay_lai", 2500)            // về Màn AFK để đổi chế độ hoặc dừng
             return
         }
+        // Chưa đọc khung tướng của bạn: đọc một lần ở màn đội hình (1-2 phút, không đánh) để so khung khi chọn đội.
+        if (cheDoChay == CheDoChay.LEO && prefs.thieuKhung != "thu" && soKhung == null && !daThuDocTuong) {
+            daThuDocTuong = true
+            AppLog.i("Chưa có khung tướng của bạn - đọc danh sách tướng trước (một lần).")
+            docDanhSachTuong()
+            soKhung = napSoKhung()
+            return
+        }
         if (c.canDoi || cheDoChay == CheDoChay.XEM_THANH_TICH) {
             trangThai("${tenCheDo(hien)} · mở Thành Tích")
             lucTruoc = cpu { tt.lucDoi(img) }
@@ -297,6 +340,22 @@ class Leo(private val svc: BotService) {
         val banGhi = c.doi?.lucChien?.takeIf { it.endsWith("M") }?.dropLast(1)?.toDoubleOrNull()
         val tyLe = if (luc != null && banGhi != null) luc / banGhi else null
         val soSanh = luc?.let { " (đội bạn ${"%.1f".format(it)}M" + (tyLe?.let { t -> " = ${"%.0f".format(t * 100)}% bản ghi)" } ?: ")") } ?: ""
+        if (c.moiChep) {
+            c.moiChep = false
+            c.doi?.let { d -> tyLe?.let { c.tyLe.add(d to it) } }
+            // Đo 13/10 (trận đầu của đội chép): lực chiến đội bạn < 90% bản ghi thắng 1/13, 90-100% thắng 4/10, >= 100%
+            // thắng 17/26. Chép không mất gì nên chép thử trước, đội yếu để sau.
+            val nguong = prefs.nguongLuc / 100.0
+            if (nguong > 0 && c.vong == 0 && !c.danhNgay && tyLe != null && tyLe < nguong) {
+                AppLog.i("Đội vừa chép$soSanh thấp hơn ${prefs.nguongLuc}% - để sau, chép thử đội khác.")
+                c.hoan.add(c.doi!! to tyLe)
+                c.canDoi = true
+                lucTruoc = luc
+                bam(k, "doi_hinh_thanh_tich", 3000)
+                return
+            }
+            c.danhNgay = false
+        }
         // Số trong ô đỏ của đường ải (và số sau trong "A → B" ở màn THẮNG) là ải đang phải đánh.
         AppLog.i("Đánh ${tenCheDo(hien)} ải ${tienTrinh ?: "?"} với ${moTa(c.doi)}$soSanh.")
         trangThai("${tenCheDo(hien)} · đánh (${moTa(c.doi)})")
@@ -307,6 +366,7 @@ class Leo(private val svc: BotService) {
         bam(k, "doi_hinh_chien_dau", 2000)
         tranTu = now()
         tranCheDo = hien
+        c.daDanh = true
     }
 
     /** Lực chiến đội (triệu) ở màn đội hình. Ngay sau khi chép đội, game cập nhật con số chậm một chút (đo 12/10: đọc
@@ -399,6 +459,10 @@ class Leo(private val svc: BotService) {
             c.thua = 0
             c.mangSang = true
             c.viTri = null
+            c.moiChep = false; c.danhNgay = false
+            c.hoan.clear(); c.tyLe.clear()
+            c.vong = 0
+            c.dsCu = null
             tien?.let { capNhatTienTrinh(it.second) }
             if (cheDoChay == CheDoChay.MOT_TRAN) throw StopBot("Đã đánh xong 1 trận: THẮNG.")
         }
@@ -453,20 +517,50 @@ class Leo(private val svc: BotService) {
         val (dau, kDau) = veDoiDau(k0) ?: return
         // Chép nhanh: đội đứng đầu Thành Tích thắng ngay trận đầu ở 13/14 ải (đo 12/10/2026). Game tự xếp các bản ghi
         // theo khả năng thắng của tài khoản và đẩy đội đã thua xuống dưới, nên không cần đọc cả danh sách.
-        if (cheDoChay != CheDoChay.XEM_THANH_TICH && dungDuoc(dau, c)) {
+        if (cheDoChay != CheDoChay.XEM_THANH_TICH && dungDuoc(dau, c) && dau.thieuKhung.isNullOrEmpty()) {
             chep(kDau, dau, c, 0)
             return
         }
-        val (ds, k) = docTiep(dau, kDau) ?: return
-        for ((i, d) in ds.withIndex()) {
-            val da = c.daThu.any { cungDoi(d, it) }
-            AppLog.i("  Đội ${i + 1}: ${moTa(d)}${if (da) " (đã thử)" else ""}")
+        // Chưa đánh trận nào từ lần đọc trước (đang chép thử) thì thứ tự đội không đổi: dùng lại danh sách cũ, đi thẳng
+        // từ đội đầu tới đội cần chép thay vì đọc lại cả 10 đội.
+        val cu = c.dsCu
+        val ds: List<DoiThanhTich>
+        var k: KetQua
+        var dangO: Int?
+        if (cu != null && !c.daDanh && cheDoChay != CheDoChay.XEM_THANH_TICH && cungDoi(dau, cu[0])) {
+            ds = cu; k = kDau; dangO = 0
+        } else {
+            val r = docTiep(dau, kDau) ?: return
+            ds = r.first; k = r.second; dangO = ds.size - 1
+            c.dsCu = ds
+            c.daDanh = false
+            for ((i, d) in ds.withIndex()) {
+                val da = c.daThu.any { cungDoi(d, it) }
+                AppLog.i("  Đội ${i + 1}: ${moTa(d)}${if (da) " (đã thử)" else ""}")
+            }
         }
         if (cheDoChay == CheDoChay.XEM_THANH_TICH) {
             bam(k, "tt_nhan_de_dong")
             throw StopBot("Đã đọc xong Thành Tích (${ds.size} đội).")
         }
-        val chon = ds.indices.firstOrNull { dungDuoc(ds[it], c) }
+        var chon = chonDoi(ds, c)
+        if (chon == null && c.hoan.isNotEmpty()) {
+            // Đã chép thử hết: đánh đội đã hoãn có tỉ lệ lực chiến cao nhất.
+            val j = c.hoan.indices.maxByOrNull { c.hoan[it].second }!!
+            val (doiHoan, tl) = c.hoan.removeAt(j)
+            chon = ds.indices.firstOrNull { cungDoi(ds[it], doiHoan) }
+            if (chon == null) {
+                AppLog.i("  Đội đã chép thử ${moTa(doiHoan)} không còn trong Thành Tích - bỏ qua.")
+                return
+            }
+            AppLog.i("Đã chép thử hết: đánh đội có lực chiến cao nhất còn lại (${"%.0f".format(tl * 100)}% bản ghi).")
+            c.danhNgay = true
+        } else if (chon == null && c.vong + 1 < prefs.soVong) {
+            c.vong++
+            c.daThu.clear()
+            AppLog.i("Đã đánh hết các đội của ${tenCheDo(hien)} ở ải này - vòng ${c.vong + 1}.")
+            chon = chonDoi(ds, c)
+        }
         if (chon == null) {
             AppLog.i("Đã thử hết các đội dùng được trong Thành Tích của ${tenCheDo(hien)} ở ải này.")
             c.ket = true
@@ -474,9 +568,8 @@ class Leo(private val svc: BotService) {
             bam(k, "tt_nhan_de_dong")
             return
         }
-        // Đang ở đội cuối danh sách: lùi về đội đã chọn. Game có lúc bỏ qua một lần bấm mũi tên, nên sau mỗi đợt bấm
-        // thì đọc lại xem đang ở đội nào (nhận theo nội dung) rồi bấm bù cho tới đúng đội.
-        var dangO: Int? = ds.size - 1
+        // Đi từ đội đang đứng (cuối danh sách, hoặc đầu nếu dùng lại danh sách cũ) tới đội đã chọn. Game có lúc bỏ qua
+        // một lần bấm mũi tên, nên sau mỗi đợt bấm thì đọc lại xem đang ở đội nào (nhận theo nội dung) rồi bấm bù.
         var kq = k
         var d: DoiThanhTich? = null
         for (lan in 0 until DI_TOI_TOI_DA) {
@@ -491,9 +584,44 @@ class Leo(private val svc: BotService) {
         }
         if (d == null || dangO != chon) {
             AppLog.i("  Không tới được đội ${chon + 1} vừa chọn - đọc lại danh sách.")
+            c.dsCu = null
             return
         }
         chep(kq, d, c, chon)
+    }
+
+    /** Đội nên chép: đội dùng được đầu tiên theo thứ tự của game (vòng sau: tỉ lệ lực chiến đo được cao trước), bản ghi
+     *  thiếu khung để sau cùng hoặc bỏ hẳn. null nếu hết đội dùng được. */
+    private fun chonDoi(ds: List<DoiThanhTich>, c: CheDo): Int? {
+        var ung = ds.indices.filter { dungDuoc(ds[it], c) }
+        if (c.vong > 0) {
+            fun tl(i: Int) = c.tyLe.filter { cungDoi(it.first, ds[i]) }.maxOfOrNull { it.second } ?: 0.0
+            ung = ung.sortedByDescending { tl(it) }
+        }
+        return ung.firstOrNull { ds[it].thieuKhung.isNullOrEmpty() }
+            ?: if (prefs.thieuKhung == "cuoi") ung.firstOrNull() else null
+    }
+
+    /** Thành Tích không có bản ghi nào ("Không có bản ghi phù hợp"). Gặp 13/10 ở Màn AFK ải 808: ô lọc bật mà mọi bản ghi
+     *  đều có tướng chưa sở hữu, nên không có đội nào chép được. */
+    private suspend fun xuLyThanhTichTrong(img: Mat) {
+        val c = cd.getValue(hien)
+        // Chữ "Nhấn để đóng" của bảng trống nhấp nháy mờ nên không dò bằng mẫu được: bấm thẳng vào chỗ của nó (bám đáy).
+        val w = img.cols()
+        val x = w / 2
+        val y = img.rows() - (REF_H - 2418) * w / REF_W
+        if (cheDoChay == CheDoChay.XEM_THANH_TICH) {
+            svc.tap(x, y)
+            delay(CHO_SAU_BAM)
+            throw StopBot("Thành Tích trống: không có đội nào chép được (bản ghi đều có tướng chưa sở hữu).")
+        }
+        if (c.canDoi) {
+            AppLog.i("Thành Tích của ${tenCheDo(hien)} ở ải này không có đội nào chép được (bản ghi đều có tướng chưa sở hữu).")
+            c.ket = true
+            c.canDoi = false
+        }
+        svc.tap(x, y)
+        delay(CHO_SAU_BAM)
     }
 
     private suspend fun chep(k: KetQua, d: DoiThanhTich, c: CheDo, i: Int) {
@@ -505,6 +633,7 @@ class Leo(private val svc: BotService) {
         c.thua = 0
         c.canDoi = false
         c.mangSang = false
+        c.moiChep = true
         vuaChep = true
         chep++
     }
@@ -523,9 +652,13 @@ class Leo(private val svc: BotService) {
             val (img, kk) = chup()
             k = kk
             val d = if (kk.manHinh == "thanh_tich") cpu { tt.doc(img) } else null
+            if (d?.lucChien != null && d.chuKy != null && truoc != null && cungDoi(d, truoc!!)) {
+                soKhung?.let { sk -> d.thieuKhung = cpu { daiTuong(nd, img)?.let { dai -> sk.thieu(dai).also { dai.release() } } } }
+                img.release()
+                return d to kk
+            }
             img.release()
             if (d?.lucChien != null && d.chuKy != null) {
-                if (truoc != null && cungDoi(d, truoc!!)) return d to kk
                 truoc = d
             } else {
                 truoc = null
@@ -546,6 +679,10 @@ class Leo(private val svc: BotService) {
             return null
         }
         var d = cpu { tt.doc(img) }
+        // Bảng mở sẵn ở đội đầu thì đội này không qua chupDoi: so khung ngay trên ảnh này.
+        if (d != null && "tt_mui_ten_trai" !in k1.nut && d.chuKy != null && d.lucChien != null) {
+            soKhung?.let { sk -> d.thieuKhung = cpu { daiTuong(nd, img)?.let { dai -> sk.thieu(dai).also { dai.release() } } } }
+        }
         img.release()
         if (d == null) return null
         var k = k1
@@ -592,6 +729,142 @@ class Leo(private val svc: BotService) {
         }
         AppLog.i("  Thành Tích có hơn $SO_DOI_TOI_DA đội?")
         return null
+    }
+
+    // ---------------------------------------------------------------- khung tướng của bạn
+
+    /** Khung tướng của bạn đã đọc (files/tuong_cua_toi.json + ảnh mặt); null nếu chưa có. */
+    private fun napSoKhung(): SoKhung? {
+        val f = File(svc.filesDir, TEP_TUONG)
+        if (!f.exists()) {
+            AppLog.i("Chưa có khung tướng của bạn: bot sẽ đọc danh sách tướng ở màn đội hình.")
+            return null
+        }
+        return runCatching {
+            val arr = JSONArray(f.readText())
+            val cuaToi = mutableMapOf<String, Int>()
+            val mat = mutableListOf<Pair<Mat, Int>>()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val k = o.getInt("khung")
+                if (o.has("ten")) o.getString("ten").let { cuaToi[it] = maxOf(cuaToi[it] ?: 0, k) }
+                if (o.has("mat")) mat.add(decodeImage(File(svc.filesDir, o.getString("mat")).readBytes()) to k)
+            }
+            val yeu = cuaToi.filterValues { it == 0 }.keys.sorted()
+            AppLog.i("So khung tướng: tướng của bạn không khung: ${yeu.joinToString(", ").ifEmpty { "không có" }}.")
+            SoKhung(thuVien, cuaToi, mat)
+        }.getOrElse {
+            AppLog.i("Không đọc được $TEP_TUONG (${it.message}): không so khung tướng.")
+            null
+        }
+    }
+
+    /** Bài thử / đọc lại sau khi nâng phẩm tướng: đọc khung tướng của bạn ở danh sách tướng của màn đội hình. */
+    suspend fun docTuong() {
+        if (docDanhSachTuong()) soKhung = napSoKhung()
+    }
+
+    /** Mở màn đội hình (nếu đang ở Màn AFK, chưa đánh), về đầu danh sách tướng rồi vuốt dần xuống tới hết, đọc khung và nhận
+     *  tướng của từng thẻ, lưu vào files/tuong_cua_toi.json. Vuốt ở khe giữa 2 cột thẻ để không kéo nhầm tướng vào đội, và
+     *  so lực chiến đội sau mỗi lần vuốt: đổi là dừng ngay. Trả về true nếu đọc xong. */
+    private suspend fun docDanhSachTuong(): Boolean {
+        trangThai("đọc khung tướng")
+        var (img, k) = chup()
+        if (k.manHinh == "man_afk" && "man_afk_chien_dau" in k.nut) {
+            AppLog.i("Mở màn đội hình (chưa đánh).")
+            img.release()
+            bam(k, "man_afk_chien_dau", 1500)
+            for (lan in 0 until 8) {
+                val r = chup(); img = r.first; k = r.second
+                if (k.manHinh == "doi_hinh") break
+                img.release()
+                delay(1500)
+            }
+        }
+        if (k.manHinh != "doi_hinh") {
+            img.release()
+            AppLog.i("Đọc khung tướng: cần mở màn đội hình (hoặc Màn AFK) trước.")
+            return false
+        }
+        val luc = cpu { tt.lucDoi(img) }
+        val w = img.cols()
+        val h = img.rows()
+        val s = w.toDouble() / REF_W
+        val x = (KHE_X * s).toInt()
+        val ya = h - ((REF_H - VUOT_TU) * s).toInt()
+        val yb = h - ((REF_H - VUOT_DEN) * s).toInt()
+        suspend fun kiemTra(im: Mat, kk: KetQua, lan: String) {
+            val moi = if (kk.manHinh == "doi_hinh") cpu { tt.lucDoi(im) } else null
+            if (kk.manHinh != "doi_hinh" || (luc != null && moi != null && moi != luc)) {
+                im.release()
+                throw StopBot("Đọc khung tướng: sau lần vuốt $lan màn hình / lực chiến đội đã đổi ($luc -> $moi). Kiểm tra lại đội.")
+            }
+        }
+        fun khac(a: Mat, b: Mat): Double {
+            val d = Mat()
+            Core.absdiff(a, b, d)
+            val m = Core.mean(d)
+            d.release()
+            return (m.`val`[0] + m.`val`[1] + m.`val`[2]) / 3
+        }
+        // Về đầu danh sách: vuốt ngược tới khi danh sách đứng yên.
+        var cu = cpu { vungDanhSach(img) }
+        img.release()
+        for (lan in 1..VUOT_TOI_DA) {
+            svc.swipe(x, yb, x, ya, 250)
+            delay(1200)
+            val (im, kk) = chup()
+            kiemTra(im, kk, "về đầu $lan")
+            val moi = cpu { vungDanhSach(im) }
+            im.release()
+            val dung = khac(moi, cu) < 2.0
+            cu.release()
+            cu = moi
+            if (dung) break
+        }
+        val doc = DocDanhSach(thuVien)
+        run {
+            val (im, _) = chup()
+            cpu { doc.them(im) }
+            im.release()
+        }
+        for (lan in 1..VUOT_TOI_DA) {
+            svc.swipe(x, ya, x, yb, 1000)
+            delay(1600)                             // chờ danh sách trôi hết rồi mới chụp
+            val (im, kk) = chup()
+            kiemTra(im, kk, "$lan")
+            val moi = cpu { vungDanhSach(im) }
+            val het = khac(moi, cu) < 2.0           // hết danh sách: ảnh không đổi
+            cu.release()
+            cu = moi
+            if (!het) cpu { doc.them(im) }
+            im.release()
+            if (het) break
+        }
+        cu.release()
+        val ds = cpu { doc.xong() }
+        val thuMuc = File(svc.filesDir, THU_MUC_MAT).apply { deleteRecursively(); mkdirs() }
+        val arr = JSONArray()
+        ds.forEachIndexed { i, t ->
+            val o = JSONObject().put("khung", t.khung).put("trong_doi", t.trongDoi)
+            t.ten?.let { o.put("ten", it) }
+            t.goiY?.let { o.put("goi_y", it) }
+            if (!t.trongDoi) {
+                val ten = "$THU_MUC_MAT/%03d.png".format(i + 1)
+                Imgcodecs.imwrite(File(svc.filesDir, ten).path, t.mat)
+                o.put("mat", ten)
+            }
+            arr.put(o)
+        }
+        File(svc.filesDir, TEP_TUONG).writeText(arr.toString(1))
+        val cuaToi = ds.mapNotNull { t -> t.ten?.let { it to t.khung } }.groupBy({ it.first }, { it.second }).mapValues { it.value.max() }
+        val thieu = cuaToi.filter { (t, kh) -> kh == 0 && (thuVien.coKhung[t] ?: 0.0) >= 0.8 }.keys.sorted()
+        AppLog.i("Đọc khung tướng: ${ds.size} thẻ, nhận ra ${cuaToi.size} tướng có trong thư viện. Không khung: " +
+            cuaToi.filterValues { it == 0 }.keys.sorted().joinToString(", ").ifEmpty { "không có" } + ".")
+        if (thieu.isNotEmpty()) AppLog.i("  Thiếu khung so với bản ghi (bản ghi thường có khung): ${thieu.joinToString(", ")}.")
+        ds.filter { it.goiY != null }.forEach { AppLog.i("  Chưa chắc: một thẻ giống ${it.goiY} (${"%.2f".format(it.diem)}).") }
+        ds.forEach { it.anh.release(); it.mat.release() }
+        return true
     }
 
     // ---------------------------------------------------------------- bài thử

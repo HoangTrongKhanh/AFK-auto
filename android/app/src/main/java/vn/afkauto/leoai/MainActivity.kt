@@ -73,6 +73,21 @@ class MainActivity : Activity() {
                 else -> "ca_hai"
             }
         }
+        val thieuKhung = findViewById<RadioGroup>(R.id.thieuKhung)
+        thieuKhung.check(when (prefs.thieuKhung) {
+            "bo" -> R.id.thieuKhungBo
+            "thu" -> R.id.thieuKhungThu
+            else -> R.id.thieuKhungCuoi
+        })
+        thieuKhung.setOnCheckedChangeListener { _, id ->
+            prefs.thieuKhung = when (id) {
+                R.id.thieuKhungBo -> "bo"
+                R.id.thieuKhungThu -> "thu"
+                else -> "cuoi"
+            }
+        }
+        bindNumber(R.id.nguongLuc, prefs::nguongLuc, NGUONG_LUC_RANGE)
+        bindNumber(R.id.soVong, prefs::soVong, SO_VONG_RANGE)
         bindNumber(R.id.thuLai, prefs::thuLai, THU_LAI_RANGE)
         bindNumber(R.id.thuLaiDoiCu, prefs::thuLaiDoiCu, THU_LAI_RANGE)
         bindNumber(R.id.gioToiDa, prefs::gioToiDa, GIO_TOI_DA_RANGE)

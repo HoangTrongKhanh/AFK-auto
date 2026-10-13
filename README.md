@@ -46,7 +46,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ## Khung tướng (phẩm) của bạn
 
 `doc_tuong_cua_toi.py --serial <máy>` mở màn đội hình (chưa đánh), lướt danh sách tướng (vuốt ở khe giữa 2 cột, nửa
-hàng mỗi lần; lực chiến đội đổi là dừng), đọc khung từng thẻ và nhận tướng bằng ảnh mặt từ dữ liệu Thành Tích. Kết quả:
+hàng mỗi lần; lực chiến đội đổi là dừng), đọc khung từng thẻ và nhận tướng bằng ảnh mặt trong thư viện tướng
+`templates/vi/tuong/` (tạo bằng `tao_thu_vien_tuong.py` từ dữ liệu Thành Tích đã thu; app Android dùng chung). Kết quả:
 `thu_thap_tuong/tuong_cua_toi.json` và `tuong_cua_toi.html` (tướng nào của bạn không khung trong khi bản ghi có khung).
 Thẻ khớp chưa chắc nằm ở mục "Cần xác nhận"; `--xac-nhan 29=Damian` lưu mặt thẻ đó vào thư viện và gán tên lại.
 
@@ -54,6 +55,14 @@ Khi đã có `tuong_cua_toi.json`, `leo_ai.py` so khung lúc chọn đội: bả
 không khung (chỉ xét tướng bản ghi dùng có khung >= 50% số lần) bị đánh dấu "thiếu khung" và để sau cùng
 (`--thieu-khung cuoi`, mặc định), bỏ hẳn (`bo`) hoặc không so (`thu`). Đo 13/10: bản ghi thiếu khung Saida thắng 1/14
 trận đầu, bản ghi không thiếu khung thắng 15/20. Đọc lại danh sách tướng mỗi khi nâng phẩm tướng.
+
+## App Android (android/)
+
+App AfkAuto (`./gradlew phatHanh` → `AfkAuto-<phiên bản>.apk`) có cùng các tính năng chọn đội với bản PC: đánh mỗi đội 1
+trận, chép thử theo tỉ lệ lực chiến, vòng 2, so khung tướng, xử lý Thành Tích trống. Lần chạy đầu, app tự đọc danh sách
+tướng ở màn đội hình (lưu trong thư mục riêng của app); đọc lại bằng ⋯ → Khung tướng trên bảng nổi. Module `:vision` là
+bản Kotlin của phần nhận diện; `vision/tao_ket_qua_python.py` ghi kết quả của bản Python để `./gradlew :vision:test`
+kiểm tra bản Kotlin cho kết quả giống hệt (cả thẻ tướng, khung, danh sách tướng).
 
 ## Các module
 

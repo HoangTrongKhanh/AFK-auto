@@ -646,6 +646,8 @@ class LeoAi:
             d, img, k = self.chup_doi()
             if d is None:
                 return None
+        if self.so_khung is not None and d.thieu_khung is None:     # bảng mở sẵn ở đội đầu: chưa qua chup_doi
+            d.thieu_khung = self.so_khung.thieu(img)
         return d, img, k
 
     def doc_tiep(self, d, k):

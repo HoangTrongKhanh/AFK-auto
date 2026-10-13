@@ -38,9 +38,13 @@ class DoiThanhTich(
     val thuCong: Boolean,
     val locBat: Boolean?,           // ô lọc "chỉ đội đã sở hữu" đang bật?
 ) {
+    /** Tướng mà bản ghi có khung còn của bạn không khung (app điền khi so khung, xem SoKhung). */
+    var thieuKhung: List<String>? = null
+
     override fun toString(): String {
         val nhanVn = mapOf("chua_xep_hang" to "Chưa Xếp Hạng", "cuc_han" to "Cực Hạn", "phu_hop" to "Phù Hợp Với Tướng")[nhan]
-        val them = listOfNotNull(nhanVn, "Lý Tưởng".takeIf { lyTuong }, "Thủ Công".takeIf { thuCong })
+        val them = listOfNotNull(nhanVn, "Lý Tưởng".takeIf { lyTuong }, "Thủ Công".takeIf { thuCong },
+            thieuKhung?.takeIf { it.isNotEmpty() }?.let { "thiếu khung " + it.joinToString(", ") })
         return (listOf(lucChien ?: "?") + them).joinToString(" · ")
     }
 }

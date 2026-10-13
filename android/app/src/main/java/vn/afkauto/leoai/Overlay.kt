@@ -114,6 +114,7 @@ class Overlay(private val svc: BotService) {
             "1 trận" to svc::startOneBattle,
             "Nhận diện" to svc::startRecognize,
             "Thành Tích" to svc::startReadRecords,
+            "Khung tướng" to svc::startReadHeroes,
         )) {
             actions += chip(label, 0xFF455A64.toInt()) { action() }.also { probeRow.addView(it, margins()) }
         }

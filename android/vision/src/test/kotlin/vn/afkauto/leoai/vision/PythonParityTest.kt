@@ -115,6 +115,47 @@ class PythonParityTest {
         }
     }
 
+    private val tv by lazy { ThuVienTuong.load { File(root, "templates/$it").readBytes() } }
+
+    @Test
+    fun theTuong() {
+        var n = 0
+        for (r in rows("the")) {
+            val dai = assertNotNull(daiTuong(nd, image(r[1])), r[1])
+            val the = assertNotNull(tachThe(dai), "${r[1]}: không tách được thẻ")
+            assertEquals(r.size - 2, the.size, r[1])
+            for ((i, cell) in r.drop(2).withIndex()) {
+                val (ten, diem, khung) = cell.split(":")
+                val (d, t) = tv.diem(the[i].mat).first()
+                assertEquals(ten, t, "${r[1]} thẻ ${i + 1}: tướng")
+                assertEquals(diem.toDouble(), d, 0.03, "${r[1]} thẻ ${i + 1}: điểm")
+                assertEquals(khung.toInt(), tv.khung(the[i].anh), "${r[1]} thẻ ${i + 1}: khung")
+                n++
+            }
+        }
+        println("Đã so $n thẻ tướng")
+    }
+
+    @Test
+    fun thieuKhung() {
+        val js = org.json.JSONObject(javaClass.getResource("/cua_toi.json")!!.readText())
+        val sk = SoKhung(tv, js.keys().asSequence().associateWith { js.getInt(it) }, emptyList())
+        for (r in rows("thieu")) {
+            val dai = assertNotNull(daiTuong(nd, image(r[1])), r[1])
+            assertEquals(r.getOrElse(2) { "" }, sk.thieu(dai)!!.joinToString(";"), r[1])
+        }
+    }
+
+    @Test
+    fun danhSachTuong() {
+        for (r in rows("ds")) {
+            val doc = DocDanhSach(tv)
+            doc.them(image(r[1]))
+            val got = doc.xong().map { "${it.ten ?: "-"}:${it.khung}:${if (it.trongDoi) 1 else 0}" }
+            assertEquals(r.drop(2), got, r[1])
+        }
+    }
+
     @Test
     fun oKhoa() {
         for (r in rows("khoa")) {

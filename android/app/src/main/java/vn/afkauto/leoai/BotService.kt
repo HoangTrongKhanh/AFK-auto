@@ -121,6 +121,9 @@ class BotService : AccessibilityService() {
     /** Bài thử: mở Thành Tích, đọc danh sách đội rồi dừng (không đánh, không chép). */
     fun startReadRecords() = runJob("Đọc Thành Tích") { leo.chay(Leo.CheDoChay.XEM_THANH_TICH) }
 
+    /** Đọc khung (phẩm) tướng của bạn ở danh sách tướng màn đội hình; chạy lại sau khi nâng phẩm tướng. */
+    fun startReadHeroes() = runJob("Đọc khung tướng") { leo.docTuong() }
+
     /** Bài thử: nhận diện màn hình hiện tại và ghi vào nhật ký. */
     fun startRecognize() = runJob("Nhận diện màn hình") { leo.nhanDienThu() }
 

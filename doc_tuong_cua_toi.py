@@ -12,7 +12,6 @@ Tướng được nhận ra bằng cách so ảnh mặt với các nhóm tướn
     .venv/bin/python doc_tuong_cua_toi.py --anh samples/tab_s7_doi_hinh_man_afk.png   # thử trên ảnh có sẵn
 """
 import argparse
-import csv
 import html
 import json
 import sys
@@ -32,7 +31,8 @@ BASE = Path(__file__).resolve().parent
 THU_MUC = BASE / "thu_thap_tuong"
 KET_QUA = THU_MUC / "tuong_cua_toi.json"
 ANH = THU_MUC / "tuong_cua_toi"
-MAT_XAC_NHAN = THU_MUC / "mat_xac_nhan"   # ảnh mặt tướng bạn đã xác nhận (tên file = tên tướng): thêm vào thư viện
+MAT_XAC_NHAN = THU_MUC / "mat_xac_nhan"
+THU_VIEN = TPL_DIR / "tuong"   # ảnh mặt tướng bạn đã xác nhận (tên file = tên tướng): thêm vào thư viện
 
 # Toạ độ máy gốc 1600x2560. Danh sách tướng nằm trên hàng nút Thành Tích / Chiến Đấu nên bám mép dưới.
 DANH_SACH_Y = (1530, 2295)
@@ -104,8 +104,8 @@ def cat_the(img, cot=None):
     for ha, hb in hang:
         for ca, cb in cot:
             # Ô trống (cuối danh sách) hoặc ô chụp lúc còn trôi: phần lớn là nền kem / gần như một màu.
-            # Ô trống gần như một màu; thẻ tướng lông trắng (Faramor) có nhiều điểm giống màu kem nên ngưỡng kem thấp.
-            if (~kem[ha:hb, ca:cb]).mean() < 0.35 or xam[ha:hb, ca:cb].std() < 25:
+            # Ô trống: gần như toàn màu kem. Thẻ tướng lông trắng (Faramor) có nhiều điểm giống màu kem nên ngưỡng kem thấp.
+            if (~kem[ha:hb, ca:cb]).mean() < 0.35 or xam[ha:hb, ca:cb].std() < 15:   # thẻ phủ xanh ~26
                 continue
             cx, ty = int((ca + cb) / 2 * k) + 80, int(ha * k) + 40
             the = nho[ty - 15:ty + 190, cx - 65:cx + 65]
@@ -125,38 +125,24 @@ def trong_doi(the):
 
 
 class ThuVien:
-    """Mặt tướng đã đặt tên và các thẻ đã biết khung từ dữ liệu Thành Tích."""
+    """Thư viện tướng templates/vi/tuong/ (tao_thu_vien_tuong.py): mặt các tướng đã đặt tên, tỉ lệ có khung của từng
+    tướng trong bản ghi, thẻ mẫu viền đã biết khung. App Android dùng cùng thư viện này."""
 
     def __init__(self):
-        nhom = json.loads((THU_MUC / "nhom.json").read_text(encoding="utf-8"))
-        ten = json.loads((THU_MUC / "ten_tuong.json").read_text(encoding="utf-8"))
-        khung = json.loads((THU_MUC / "khung.json").read_text(encoding="utf-8"))
-        with (THU_MUC / "ban_ghi.csv").open(encoding="utf-8") as f:
-            rows = list(csv.DictReader(f))
-        self.mat = {}
-        self.vien, self.nhan_khung = [], []
-        self.ty_le_khung = Counter()
-        self.dem = Counter()
-        for r in rows:
-            the = T.tach_the(cv2.imread(str(THU_MUC / r["anh"]))) if r["anh"] else None
-            for i, (m, t) in enumerate(the or []):
-                khoa = f"{r['luot']}|{r['vi_tri']}|{i}"
-                tn = ten.get(str(nhom.get(khoa)))
-                if not tn:
-                    continue
-                m = cv2.resize(m, (T.CO_SO[0] + 2 * T.LE, T.CO_SO[1] + 2 * T.LE), interpolation=cv2.INTER_AREA)
-                if len(self.mat.setdefault(tn, [])) < 12:
-                    self.mat[tn].append(m)
-                self.dem[tn] += 1
-                self.ty_le_khung[tn] += khung.get(khoa, 0)
-                if len(self.vien) < 1500:
-                    self.vien.append(T.dac_trung_vien(t))
-                    self.nhan_khung.append(khung.get(khoa, 0))
-        # Mặt đã xác nhận lấy từ chính danh sách của bạn: lần sau khớp gần như tuyệt đối.
+        js = json.loads((THU_VIEN / "tuong.json").read_text(encoding="utf-8"))
+        o = T.CO_SO[0] + 2 * T.LE
+        self.mat, self.dem, self.ty_le_khung = {}, Counter(), Counter()
+        for tn, x in js["tuong"].items():
+            tam = cv2.imread(str(THU_VIEN / f"{tn}.png"))
+            self.mat[tn] = [tam[:, i * o:(i + 1) * o] for i in range(x["so_mat"])]
+            self.dem[tn] = x["so_lan"]
+            self.ty_le_khung[tn] = x["co_khung"] * x["so_lan"]
+        # Mặt đã xác nhận lấy từ chính danh sách của bạn (--xac-nhan): lần sau khớp gần như tuyệt đối.
         for f in sorted(MAT_XAC_NHAN.glob("*.png")) if MAT_XAC_NHAN.exists() else []:
             self.mat.setdefault(f.stem.split("~")[0], []).insert(0, cv2.imread(str(f)))
-        self.vien = np.array(self.vien)
-        self.nhan_khung = np.array(self.nhan_khung)
+        v = js["vien"]
+        self.vien = np.fromfile(THU_VIEN / "vien.bin", dtype="<f4").reshape(v["so"], v["chieu"])
+        self.nhan_khung = np.fromfile(THU_VIEN / "vien_nhan.bin", dtype=np.uint8).astype(int)
         self.mau_sao = [cv2.imread(str(TPL_DIR / t), cv2.IMREAD_GRAYSCALE) for t in T.MAU_SAO]
 
     def khung(self, the):

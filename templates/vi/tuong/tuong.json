@@ -1,0 +1,148 @@
+{
+ "tuong": {
+  "Aliceth": {
+   "so_mat": 3,
+   "so_lan": 3,
+   "co_khung": 1.0
+  },
+  "Alna": {
+   "so_mat": 12,
+   "so_lan": 55,
+   "co_khung": 1.0
+  },
+  "Aster": {
+   "so_mat": 1,
+   "so_lan": 1,
+   "co_khung": 0.0
+  },
+  "Atha": {
+   "so_mat": 1,
+   "so_lan": 1,
+   "co_khung": 1.0
+  },
+  "Baelran": {
+   "so_mat": 12,
+   "so_lan": 93,
+   "co_khung": 0.892
+  },
+  "Berial": {
+   "so_mat": 1,
+   "so_lan": 1,
+   "co_khung": 0.0
+  },
+  "Callan": {
+   "so_mat": 2,
+   "so_lan": 2,
+   "co_khung": 1.0
+  },
+  "Contess": {
+   "so_mat": 12,
+   "so_lan": 73,
+   "co_khung": 0.699
+  },
+  "Damian": {
+   "so_mat": 2,
+   "so_lan": 1,
+   "co_khung": 1.0
+  },
+  "Dunlingr": {
+   "so_mat": 2,
+   "so_lan": 2,
+   "co_khung": 0.0
+  },
+  "Eironn": {
+   "so_mat": 3,
+   "so_lan": 3,
+   "co_khung": 1.0
+  },
+  "Eryndor": {
+   "so_mat": 12,
+   "so_lan": 373,
+   "co_khung": 0.925
+  },
+  "Evie": {
+   "so_mat": 6,
+   "so_lan": 6,
+   "co_khung": 0.5
+  },
+  "Faramor": {
+   "so_mat": 12,
+   "so_lan": 18,
+   "co_khung": 1.0
+  },
+  "Frieren": {
+   "so_mat": 12,
+   "so_lan": 302,
+   "co_khung": 1.0
+  },
+  "Gunnar": {
+   "so_mat": 12,
+   "so_lan": 26,
+   "co_khung": 0.692
+  },
+  "Hugin": {
+   "so_mat": 4,
+   "so_lan": 4,
+   "co_khung": 1.0
+  },
+  "Kulu": {
+   "so_mat": 4,
+   "so_lan": 4,
+   "co_khung": 0.0
+  },
+  "Mehira": {
+   "so_mat": 12,
+   "so_lan": 368,
+   "co_khung": 0.255
+  },
+  "Rolan": {
+   "so_mat": 12,
+   "so_lan": 420,
+   "co_khung": 1.0
+  },
+  "Rowan": {
+   "so_mat": 3,
+   "so_lan": 3,
+   "co_khung": 1.0
+  },
+  "SS": {
+   "so_mat": 12,
+   "so_lan": 112,
+   "co_khung": 0.982
+  },
+  "Saida": {
+   "so_mat": 12,
+   "so_lan": 80,
+   "co_khung": 1.0
+  },
+  "Senea": {
+   "so_mat": 12,
+   "so_lan": 35,
+   "co_khung": 1.0
+  },
+  "Silven": {
+   "so_mat": 12,
+   "so_lan": 86,
+   "co_khung": 1.0
+  },
+  "Sylphira": {
+   "so_mat": 12,
+   "so_lan": 12,
+   "co_khung": 0.917
+  },
+  "Tachi": {
+   "so_mat": 3,
+   "so_lan": 3,
+   "co_khung": 1.0
+  },
+  "Talene": {
+   "so_mat": 12,
+   "so_lan": 13,
+   "co_khung": 0.0
+  }
+ },
+ "vien": {
+  "so": 600,
+  "chieu": 892
+ }
+}

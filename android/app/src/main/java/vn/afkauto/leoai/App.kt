@@ -14,6 +14,8 @@ class App : Application() {
 
 // Khoảng cho phép của các cài đặt (dùng ở màn hình chính).
 val THU_LAI_RANGE = 1..20
+val SO_VONG_RANGE = 1..5
+val NGUONG_LUC_RANGE = 0..150
 val GIO_TOI_DA_RANGE = 0..48
 val DUNG_O_AI_RANGE = 0..99999
 
@@ -26,15 +28,32 @@ class Prefs(context: Context) {
         get() = p.getString("che_do", "ca_hai") ?: "ca_hai"
         set(v) = p.edit().putString("che_do", v).apply()
 
-    /** Số trận mỗi đội (đội có sẵn lúc bắt đầu, đội vừa chép) trước khi chép đội khác. */
+    /** Số trận mỗi đội (đội có sẵn lúc bắt đầu, đội vừa chép) trước khi chép đội khác. Mặc định 1: đo 13/10, đội chép
+     *  thắng 42% ở trận đầu nhưng chỉ 6-7% ở trận 2-3. */
     var thuLai: Int
-        get() = p.getInt("thu_lai", 3).coerceIn(THU_LAI_RANGE)
+        get() = p.getInt("thu_lai", 1).coerceIn(THU_LAI_RANGE)
         set(v) = p.edit().putInt("thu_lai", v).apply()
 
     /** Số trận của đội vừa thắng ải trước khi sang ải mới, trước khi chép đội của ải mới. */
     var thuLaiDoiCu: Int
         get() = p.getInt("thu_lai_doi_cu", 1).coerceIn(THU_LAI_RANGE)
         set(v) = p.edit().putInt("thu_lai_doi_cu", v).apply()
+
+    /** Số vòng thử các đội trong Thành Tích ở một ải trước khi bỏ chế độ đó. */
+    var soVong: Int
+        get() = p.getInt("so_vong", 2).coerceIn(SO_VONG_RANGE)
+        set(v) = p.edit().putInt("so_vong", v).apply()
+
+    /** Chép thử: đội vừa chép có lực chiến đội bạn thấp hơn mức này (% lực chiến bản ghi) thì chưa đánh, chép thử đội
+     *  khác; hết đội thì đánh theo tỉ lệ giảm dần. 0 = tắt. */
+    var nguongLuc: Int
+        get() = p.getInt("nguong_luc", 95).coerceIn(NGUONG_LUC_RANGE)
+        set(v) = p.edit().putInt("nguong_luc", v).apply()
+
+    /** Bản ghi có tướng mà bản ghi có khung còn của bạn không khung: "cuoi" = thử sau cùng, "bo" = bỏ, "thu" = không so. */
+    var thieuKhung: String
+        get() = p.getString("thieu_khung", "cuoi") ?: "cuoi"
+        set(v) = p.edit().putString("thieu_khung", v).apply()
 
     /** Bỏ qua đội Cực Hạn (tỉ lệ thành công thấp) thay vì thử sau cùng. */
     var boCucHan: Boolean

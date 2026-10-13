@@ -83,7 +83,7 @@
 
         <TextView
             style="@style/Hint"
-            android:text="• ▶ Chạy: đánh liên tục. Thua đủ số trận thì bot mở Thành Tích, chép đội của người chơi khác đã qua ải (ưu tiên Lý Tưởng / Phù Hợp Với Tướng, Cực Hạn sau cùng, bỏ đội Chiến Đấu Thủ Công). Thử hết đội thì chuyển chế độ; hết cả hai thì dừng và báo.\n• ■: dừng.  ≡: chạm để xem nhật ký, kéo để dời bảng nổi.\n• ✕: đóng bảng nổi (dừng bot nếu đang chạy). Mở lại bằng nút Hiện bảng nổi ở đầu màn hình này." />
+            android:text="• ▶ Chạy: đánh liên tục. Thua đủ số trận thì bot mở Thành Tích, chép đội của người chơi khác đã qua ải (theo thứ tự của game, bỏ đội Chiến Đấu Thủ Công, đội có tướng thiếu khung để sau cùng). Đội vừa chép mà lực chiến đội bạn thấp hơn ngưỡng thì bot chưa đánh mà chép thử đội khác. Thử hết đội thì chuyển chế độ; hết cả hai thì dừng và báo.\n• Lần chạy đầu, bot đọc danh sách tướng ở màn đội hình (1-2 phút, không đánh) để biết tướng nào của bạn chưa có khung. Nâng phẩm tướng xong thì đọc lại: bật Hiện các bài thử (Nâng cao) → ⋯ → Khung tướng.\n• ■: dừng.  ≡: chạm để xem nhật ký, kéo để dời bảng nổi.\n• ✕: đóng bảng nổi (dừng bot nếu đang chạy). Mở lại bằng nút Hiện bảng nổi ở đầu màn hình này." />
 
         <!-- Cài đặt -->
         <TextView
@@ -140,6 +140,59 @@
                 android:id="@+id/thuLaiDoiCu"
                 style="@style/Number" />
         </LinearLayout>
+
+        <LinearLayout style="@style/Row">
+
+            <TextView
+                style="@style/Label"
+                android:text="Chép thử: đánh ngay khi lực chiến đội bạn ≥ (% lực chiến bản ghi, 0 = tắt)" />
+
+            <EditText
+                android:id="@+id/nguongLuc"
+                style="@style/Number" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Row">
+
+            <TextView
+                style="@style/Label"
+                android:text="Số vòng thử các đội ở một ải" />
+
+            <EditText
+                android:id="@+id/soVong"
+                style="@style/Number" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="14sp"
+            android:text="Đội có tướng thiếu khung (bản ghi dùng tướng có khung, tướng của bạn không khung)" />
+
+        <RadioGroup
+            android:id="@+id/thieuKhung"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <RadioButton
+                android:id="@+id/thieuKhungCuoi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Thử sau cùng" />
+
+            <RadioButton
+                android:id="@+id/thieuKhungBo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Bỏ qua" />
+
+            <RadioButton
+                android:id="@+id/thieuKhungThu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Không so khung" />
+        </RadioGroup>
 
         <CheckBox
             android:id="@+id/boCucHan"
@@ -231,7 +284,7 @@
                 android:id="@+id/showProbes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Hiện các bài thử trên bảng nổi (nút ⋯): đánh 1 trận, nhận diện màn hình, đọc Thành Tích" />
+                android:text="Hiện các bài thử trên bảng nổi (nút ⋯): đánh 1 trận, nhận diện màn hình, đọc Thành Tích, đọc lại khung tướng" />
 
             <CheckBox
                 android:id="@+id/saveImages"
