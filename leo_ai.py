@@ -43,6 +43,7 @@ log = logging.getLogger("leo_ai")
 CHO_SAU_BAM = 1.5           # giây chờ sau mỗi lần bấm để game kịp đổi màn hình
 CHO_MUI_TEN = 1.2           # chuyển đội trong Thành Tích (có hiệu ứng trượt)
 CHO_DANG_DANH = 3.0         # đang đánh: chụp lại sau bấy nhiêu giây
+DOC_LAI_CHUOI = 4           # bảng kết quả Tự Động Xử Lý: đọc lại tối đa bấy nhiêu lần
 CHO_XU_LY = 20.0            # đang Tự Động Xử Lý (game đánh ngầm): chụp lại sau bấy nhiêu giây
 CHO_KHONG_RO = 2.0          # màn hình chưa nhận ra (đang chuyển cảnh): chờ rồi chụp lại
 CHO_MAN_TAT = 20.0          # màn hình tắt / game không ở trên cùng: chờ lâu hơn
@@ -141,6 +142,7 @@ class LeoAi:
         self.bat_dau = time.monotonic()
         self.tk = dict(tran=0, thang=0, thua=0, chep=0, tu_dong=0)
         self.da_tinh_chuoi = False              # đã tính bảng Chiến Đấu Tự Động Hoàn Tất đang hiện
+        self.doc_lai_chuoi = 0                  # số lần đọc lại bảng kết quả chưa đọc được tiến trình
         self.trong_chuoi = False                # game đang (hoặc vừa) Tự Động Xử Lý, trận thua cuối chuỗi chưa tính
         self.xu_ly_tu = None                    # lúc thấy game bắt đầu Tự Động Xử Lý (đánh ngầm) trong chuỗi hiện tại
         self.thua_lien_tiep = 0
@@ -266,6 +268,12 @@ class LeoAi:
         """Bảng "Chiến Đấu Tự Động Hoàn Tất / Đã hoàn thành màn xN" khi chuỗi tự động dừng (thua, hoặc bạn tắt). Các ải
         thắng trong chuỗi không có màn THẮNG nên tính ở đây: đội mở đầu chuỗi thắng trận đầu nếu tiến trình tăng."""
         tt = self.so.tien_trinh_tu_dong(img)
+        # Bảng vừa mở còn chạy hiệu ứng (14/10: có lần không đọc được số): chờ rồi đọc lại vài lần trước khi đóng.
+        if tt is None and not self.da_tinh_chuoi and self.doc_lai_chuoi < DOC_LAI_CHUOI:
+            self.doc_lai_chuoi += 1
+            time.sleep(1.0)
+            return
+        self.doc_lai_chuoi = 0
         so_ai = tt[1] - tt[0] if tt else None
         log.info("Bảng Chiến Đấu Tự Động Hoàn Tất: %s. Đóng.",
                  f"tiến trình {tt[0]} → {tt[1]} ({so_ai} ải)" if tt else "không đọc được tiến trình")

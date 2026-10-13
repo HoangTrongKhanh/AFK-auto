@@ -31,6 +31,7 @@ private const val CHO_SAU_BAM = 1500L        // chờ sau mỗi lần bấm đ�
 private const val CHO_MUI_TEN = 1200L        // chuyển đội trong Thành Tích (có hiệu ứng trượt)
 private const val CHO_DANG_DANH = 3000L      // đang đánh: chụp lại sau bấy nhiêu ms
 private const val CHO_KHONG_RO = 2000L       // màn hình chưa nhận ra (đang chuyển cảnh): chờ rồi chụp lại
+private const val DOC_LAI_CHUOI = 4             // bảng kết quả Tự Động Xử Lý: đọc lại tối đa bấy nhiêu lần
 private const val CHO_XU_LY = 20_000L         // đang Tự Động Xử Lý (game đánh ngầm): chụp lại sau bấy nhiêu ms
 private const val CHO_MAN_TAT = 20_000L      // màn hình tắt / game không ở trên cùng: chờ lâu hơn
 private const val TRAN_TOI_DA = 300_000L     // trận kéo dài hơn bấy nhiêu ms coi là bất thường (trận tối đa ~90 giây)
@@ -114,6 +115,7 @@ class Leo(private val svc: BotService) {
     private var tuDongAi = 0                        // số ải qua được nhờ Tự Động Xử Lý
     private var xuLyTu: Long? = null                // lúc thấy game bắt đầu Tự Động Xử Lý trong chuỗi hiện tại
     private var daTinhChuoi = false                 // đã tính bảng Chiến Đấu Tự Động Hoàn Tất đang hiện
+    private var docLaiChuoi = 0                     // số lần đọc lại bảng kết quả chưa đọc được tiến trình
     private var trongChuoi = false                  // game đang (hoặc vừa) Tự Động Xử Lý, trận thua cuối chuỗi chưa tính
 
     private fun now() = svc.uptime()
@@ -512,6 +514,14 @@ class Leo(private val svc: BotService) {
      *  trong chuỗi không có màn THẮNG nên tính ở đây: đội mở đầu chuỗi thắng trận đầu nếu tiến trình tăng. */
     private suspend fun xuLyTuDongHoanTat(img: Mat) {
         val tt = cpu { so.tienTrinhTuDong(img) }
+        // Bảng vừa mở còn chạy hiệu ứng (14/10: có lần không đọc được số): chờ rồi đọc lại vài lần trước khi đóng.
+        if (tt == null && !daTinhChuoi && docLaiChuoi < DOC_LAI_CHUOI) {
+            docLaiChuoi++
+            delay(1000)
+            return
+        }
+        docLaiChuoi = 0
+        if (tt == null && !daTinhChuoi) svc.saveImage(img, "tu-dong-khong-doc-duoc", force = true)
         val soAi = tt?.let { it.second - it.first }
         AppLog.i("Bảng Chiến Đấu Tự Động Hoàn Tất: " +
             (tt?.let { "tiến trình ${it.first} → ${it.second} ($soAi ải)" } ?: "không đọc được tiến trình") + ". Đóng.")
