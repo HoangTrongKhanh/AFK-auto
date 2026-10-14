@@ -152,7 +152,7 @@ class Leo(private val svc: BotService) {
         val thuTu = when (prefs.cheDo) {
             "afk" -> listOf("afk")
             "huyen_linh" -> listOf("huyen_linh")
-            else -> listOf("afk", "huyen_linh")
+            else -> listOf("huyen_linh", "afk")      // Huyền Linh trước: ít bản ghi cần tướng bạn còn thiếu khung
         }
         cd = thuTu.associateWith { CheDo(it) }
         hien = thuTu.first()

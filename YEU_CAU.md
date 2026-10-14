@@ -138,7 +138,7 @@ Mức ưu tiên: **P0** = MVP, **P1** = bản 1.1, **P2** = để sau.
 ### 6.1 Leo ải
 | ID | Yêu cầu | Ưu tiên |
 |---|---|---|
-| F1 | Chọn chế độ: **Màn AFK**, **Thách Đấu Huyền Linh**, hoặc **cả hai** (kẹt bên này thì chuyển sang bên kia) | P0 (D2) |
+| F1 | Chọn chế độ: **Màn AFK**, **Thách Đấu Huyền Linh**, hoặc **cả hai** (Huyền Linh trước, kẹt thì chuyển sang Màn AFK; đổi thứ tự 14/10 vì Huyền Linh leo được xa hơn hẳn) | P0 (D2) |
 | F2 | Từ Màn AFK: vào đội hình, bắt đầu trận, chờ kết quả, nhận ra **thắng / thua / ải cuối / lỗi**, sang ải tiếp hoặc đánh lại | P0 |
 | F3 | Đánh lại tối đa **N lần mỗi đội** (mặc định 5, khoảng 1–50) | P0 |
 | F4 | **Chép đội từ Thành Tích**: bật ô "Chỉ hiển thị đội hình đã sở hữu", đọc cả 10 đội (tên, lực chiến, nhãn), xếp theo ưu tiên ở E21, **nhớ các đội đã thử theo tên** vì thứ tự thay đổi (E18). Thắng thì xóa danh sách đã thử cho ải sau | **P0** (D3) |

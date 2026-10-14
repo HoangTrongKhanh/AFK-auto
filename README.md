@@ -7,7 +7,7 @@ Kế hoạch, nghiệp vụ và bằng chứng nằm trong [YEU_CAU.md](YEU_CAU.
 Cắm máy (hoặc kết nối Gỡ lỗi không dây), mở game ở bất kỳ màn nào trong số: Màn AFK, bản đồ thế giới, màn đội hình, màn kết quả. Sau đó chạy:
 
 ```bash
-.venv/bin/python leo_ai.py                        # leo Màn AFK, kẹt thì sang Thách Đấu Huyền Linh
+.venv/bin/python leo_ai.py                        # leo Thách Đấu Huyền Linh, kẹt thì sang Màn AFK
 .venv/bin/python leo_ai.py --che-do huyen-linh --thu-lai 2 --gio-toi-da 3
 .venv/bin/python leo_ai.py --xem-thanh-tich       # chỉ đọc 10 đội trong Thành Tích rồi dừng (không đánh)
 .venv/bin/python leo_ai.py --thu-thap-tuong       # leo như thường, mỗi ải mới lưu tướng của cả 10 bản ghi (ô lọc tắt)

@@ -104,7 +104,7 @@
                 android:id="@+id/cheDoCaHai"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Cả hai (Màn AFK trước, kẹt thì sang Huyền Linh)" />
+                android:text="Cả hai (Huyền Linh trước, kẹt thì sang Màn AFK)" />
 
             <RadioButton
                 android:id="@+id/cheDoAfk"

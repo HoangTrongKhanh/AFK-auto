@@ -130,7 +130,9 @@ class LeoAi:
         self.nd = NhanDien()
         self.tt = DocThanhTich(self.nd)
         self.so = DocSoAi(self.nd)
-        thu_tu = {"afk": ["afk"], "huyen-linh": ["huyen_linh"], "ca-hai": ["afk", "huyen_linh"]}[a.che_do]
+        # Cả hai: Huyền Linh trước (đo 13-14/10 trên tài khoản thứ hai: Huyền Linh leo 350 → 742 trong khi Màn AFK kẹt ở
+        # 350, vì ít bản ghi Huyền Linh cần tướng bạn còn thiếu khung).
+        thu_tu = {"afk": ["afk"], "huyen-linh": ["huyen_linh"], "ca-hai": ["huyen_linh", "afk"]}[a.che_do]
         self.cd = {k: CheDo(k) for k in thu_tu}
         self.hien = thu_tu[0]                   # chế độ đang leo
         self.tien_trinh = None                  # số ải (Tiến Trình Màn Chơi Đỉnh Cao) đọc được gần nhất
@@ -840,7 +842,7 @@ def trieu(luc_chien):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--che-do", choices=["afk", "huyen-linh", "ca-hai"], default="ca-hai",
-                    help="chế độ leo (mặc định ca-hai: kẹt bên này thì sang bên kia)")
+                    help="chế độ leo (mặc định ca-hai: Huyền Linh trước, kẹt thì sang Màn AFK)")
     ap.add_argument("--thu-lai", type=int, default=1,
                     help="số trận mỗi đội trước khi chép đội khác (mặc định 1: đo 13/10, đội chép thắng 42%% ở trận đầu "
                          "nhưng chỉ 6-7%% ở trận 2-3)")
