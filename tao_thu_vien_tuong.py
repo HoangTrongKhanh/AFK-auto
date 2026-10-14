@@ -4,7 +4,7 @@ bot (bản PC và app Android) so khung tướng khi chọn đội mà không c�
 
   - <Tên>.png: tối đa SO_MAT ảnh mặt tướng (48x48) xếp ngang, để nhận ra tướng trên thẻ (bản ghi và danh sách của bạn).
     Mặt đã xác nhận trong thu_thap_tuong/mat_xac_nhan/ đứng đầu.
-  - tuong.json: {"tuong": {tên: {"so_mat", "so_lan", "co_khung"}}, "vien": {"so", "chieu"}}. co_khung = tỉ lệ số lần tướng
+  - tuong.json: {"tuong": {tên: {"so_mat", "so_lan", "co_khung"}}, "so_ban_ghi", "vien": {"so", "chieu"}}. co_khung = tỉ lệ số lần tướng
     xuất hiện với thẻ có khung trong bản ghi (tướng bản ghi thường dùng không khung thì thiếu khung không sao).
   - vien.bin: đặc trưng viền (float32, little-endian) của các thẻ đã biết khung, mỗi thẻ "chieu" số; vien_nhan.bin: nhãn
     (1 byte, 1 = có khung). Dùng để xếp thẻ có điểm khớp sao lưng chừng (k láng giềng gần nhất).
@@ -72,7 +72,7 @@ def main():
            [(f, 1) for f in random.sample(vien[1], min(VIEN_MOI_LOAI, len(vien[1])))]
     np.array([f for f, _ in chon], dtype="<f4").tofile(RA / "vien.bin")
     np.array([n for _, n in chon], dtype=np.uint8).tofile(RA / "vien_nhan.bin")
-    (RA / "tuong.json").write_text(json.dumps(dict(tuong=tuong, vien=dict(so=len(chon), chieu=len(chon[0][0]))),
+    (RA / "tuong.json").write_text(json.dumps(dict(tuong=tuong, so_ban_ghi=len(rows), vien=dict(so=len(chon), chieu=len(chon[0][0]))),
                                               ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"Đã ghi {len(tuong)} tướng và {len(chon)} thẻ mẫu viền vào {RA.relative_to(BASE)}.")
 

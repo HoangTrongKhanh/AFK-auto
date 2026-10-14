@@ -85,6 +85,21 @@
             style="@style/Hint"
             android:text="• ▶ Chạy: đánh liên tục. Thua đủ số trận thì bot mở Thành Tích, chép đội của người chơi khác đã qua ải (theo thứ tự của game, bỏ đội Chiến Đấu Thủ Công, đội có tướng thiếu khung để sau cùng). Đội vừa chép mà lực chiến đội bạn thấp hơn ngưỡng thì bot chưa đánh mà chép thử đội khác. Thử hết đội thì chuyển chế độ; hết cả hai thì dừng và báo.\n• Lần chạy đầu, bot đọc danh sách tướng ở màn đội hình (1-2 phút, không đánh) để biết tướng nào của bạn chưa có khung. Nâng phẩm tướng xong thì đọc lại: bật Hiện các bài thử (Nâng cao) → ⋯ → Khung tướng.\n• ■: dừng.  ≡: chạm để xem nhật ký, kéo để dời bảng nổi.\n• ✕: đóng bảng nổi (dừng bot nếu đang chạy). Mở lại bằng nút Hiện bảng nổi ở đầu màn hình này." />
 
+        <!-- Khung tướng -->
+        <TextView
+            style="@style/Header"
+            android:text="Khung tướng của bạn" />
+
+        <TextView
+            style="@style/Hint"
+            android:text="Các tướng mà nhiều bản ghi Thành Tích dùng có khung (số % là phần bản ghi dùng tướng đó có khung). Thiếu khung tướng nào thì đội chép có tướng đó gần như luôn thua, nên bot để các đội đó sau cùng.\n• Chọn Có khung / Không khung / Chưa có cho đúng với tài khoản của bạn: bot luôn dùng lựa chọn này thay cho kết quả tự đọc. Nâng khung tướng nào thì chọn lại tướng đó.\n• Ảnh thẻ bên phải là thẻ trong danh sách tướng của bạn giống tướng đó nhất (lần đọc khung gần nhất); chạm vào ảnh để xem thẻ khác. Đúng là tướng đó thì tích Đúng tướng: lần đọc sau bot nhận đúng ngay." />
+
+        <LinearLayout
+            android:id="@+id/khungTuong"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
         <!-- Cài đặt -->
         <TextView
             style="@style/Header"

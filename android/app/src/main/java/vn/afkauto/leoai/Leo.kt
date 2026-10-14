@@ -20,8 +20,10 @@ import vn.afkauto.leoai.vision.REF_W
 import vn.afkauto.leoai.vision.SoKhung
 import vn.afkauto.leoai.vision.ThuVienTuong
 import vn.afkauto.leoai.vision.cungDoi
+import vn.afkauto.leoai.vision.dacTrungVien
 import vn.afkauto.leoai.vision.daiTuong
 import vn.afkauto.leoai.vision.decodeImage
+import vn.afkauto.leoai.vision.matTheDanhSach
 import vn.afkauto.leoai.vision.timOKhoa
 import vn.afkauto.leoai.vision.vungDanhSach
 import java.io.File
@@ -52,6 +54,7 @@ private const val VUOT_DEN = 2000
 private const val VUOT_TOI_DA = 60
 private const val TEP_TUONG = "tuong_cua_toi.json"
 private const val THU_MUC_MAT = "tuong_cua_toi"
+private const val UNG_VIEN_TOI_THIEU = 0.45      // thẻ ứng viên của một tướng: khớp mặt ít nhất bấy nhiêu
 private const val COT_CSV = "thoi_gian,che_do,ai,loai,vi_tri,doi,luc_ban_ghi,luc_doi,ty_le,tran_thu,thieu_khung,ket_qua,chuoi,giay"
 
 private val TEN_CHE_DO = mapOf("afk" to "Màn AFK", "huyen_linh" to "Thách Đấu Huyền Linh")
@@ -840,23 +843,29 @@ class Leo(private val svc: BotService) {
 
     /** Khung tướng của bạn đã đọc (files/tuong_cua_toi.json + ảnh mặt); null nếu chưa có. */
     private fun napSoKhung(): SoKhung? {
+        apDungXacNhan()
         val f = File(svc.filesDir, TEP_TUONG)
-        if (!f.exists()) {
+        val tay = KhungTuong.docTay(svc.filesDir)
+        if (!f.exists() && tay.isEmpty()) {
             AppLog.i("Chưa có khung tướng của bạn: bot sẽ đọc danh sách tướng ở màn đội hình.")
             return null
         }
         return runCatching {
-            val arr = JSONArray(f.readText())
+            val arr = if (f.exists()) JSONArray(f.readText()) else JSONArray()
             val cuaToi = mutableMapOf<String, Int>()
             val mat = mutableListOf<Pair<Mat, Int>>()
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
                 val k = o.getInt("khung")
-                if (o.has("ten")) o.getString("ten").let { cuaToi[it] = maxOf(cuaToi[it] ?: 0, k) }
+                // Thẻ tướng đang trong đội bị game phủ xanh: khung đọc không tin được, bỏ qua (không coi là thiếu khung).
+                if (o.has("ten") && !o.optBoolean("trong_doi")) o.getString("ten").let { cuaToi[it] = maxOf(cuaToi[it] ?: 0, k) }
                 if (o.has("mat")) mat.add(decodeImage(File(svc.filesDir, o.getString("mat")).readBytes()) to k)
             }
+            // Khung bạn đánh dấu luôn thay kết quả tự đọc (chưa có tướng: coi như không khung, game cũng ẩn bản ghi đó).
+            for ((t, k) in tay) cuaToi[t] = if (k == KhungTuong.CO) 1 else 0
             val yeu = cuaToi.filterValues { it == 0 }.keys.sorted()
-            AppLog.i("So khung tướng: tướng của bạn không khung: ${yeu.joinToString(", ").ifEmpty { "không có" }}.")
+            AppLog.i("So khung tướng: tướng của bạn không khung: ${yeu.joinToString(", ").ifEmpty { "không có" }}" +
+                (if (tay.isNotEmpty()) " (bạn đánh dấu ${tay.size} tướng)." else "."))
             SoKhung(thuVien, cuaToi, mat)
         }.getOrElse {
             AppLog.i("Không đọc được $TEP_TUONG (${it.message}): không so khung tướng.")
@@ -865,6 +874,44 @@ class Leo(private val svc: BotService) {
     }
 
     /** Bài thử / đọc lại sau khi nâng phẩm tướng: đọc khung tướng của bạn ở danh sách tướng của màn đội hình. */
+    private val daApDung = mutableSetOf<String>()
+
+    /** Thẻ bạn đã xác nhận ở màn hình app (đúng là tướng X, khung K): thêm mặt thẻ vào thư viện và viền thẻ vào bước xếp
+     *  khung, để lần đọc danh sách sau nhận đúng ngay. Mỗi tệp chỉ thêm một lần (theo thời gian sửa tệp). */
+    private fun apDungXacNhan() {
+        for ((ten, xn) in KhungTuong.docXacNhan(svc.filesDir)) {
+            val f = File(svc.filesDir, xn.anh)
+            val khoa = "$ten|${f.lastModified()}|${xn.khung}"
+            if (!f.exists() || khoa in daApDung) continue
+            runCatching {
+                val anh = decodeImage(f.readBytes())
+                thuVien.themMat(ten, matTheDanhSach(anh))
+                if (xn.khung == KhungTuong.CO || xn.khung == KhungTuong.KHONG) thuVien.themVien(dacTrungVien(anh), xn.khung)
+                anh.release()
+                daApDung.add(khoa)
+            }.onFailure { AppLog.i("Không dùng được thẻ xác nhận của $ten: ${it.message}") }
+        }
+    }
+
+    /** Lưu thẻ ứng viên của từng tướng quan trọng (tối đa 3 thẻ giống nhất, thẻ đã gán tên đứng đầu) để bạn xác nhận ở
+     *  màn hình app. */
+    private fun luuUngVien(ds: List<vn.afkauto.leoai.vision.TuongCuaToi>) {
+        val thuMuc = File(svc.filesDir, KhungTuong.THU_MUC_UNG_VIEN).apply { deleteRecursively(); mkdirs() }
+        val diem = ds.map { thuVien.diem(it.mat).associate { (d, t) -> t to d } }
+        val out = mutableMapOf<String, List<KhungTuong.UngVien>>()
+        for (q in KhungTuong.quanTrong(svc)) {
+            val chon = ds.indices.filter { (diem[it][q.ten] ?: 0.0) >= UNG_VIEN_TOI_THIEU }
+                .sortedWith(compareBy<Int> { ds[it].trongDoi }.thenByDescending { ds[it].ten == q.ten }.thenByDescending { diem[it][q.ten] })
+                .take(3)
+            out[q.ten] = chon.mapIndexed { j, i ->
+                val ten = "${KhungTuong.THU_MUC_UNG_VIEN}/${q.ten}_$j.png"
+                Imgcodecs.imwrite(File(thuMuc.parentFile, ten).path, ds[i].anh)
+                KhungTuong.UngVien(ten, ds[i].khung, diem[i][q.ten] ?: 0.0, ds[i].trongDoi)
+            }
+        }
+        KhungTuong.ghiUngVien(svc.filesDir, out)
+    }
+
     suspend fun docTuong() {
         if (docDanhSachTuong()) soKhung = napSoKhung()
     }
@@ -874,6 +921,7 @@ class Leo(private val svc: BotService) {
      *  so lực chiến đội sau mỗi lần vuốt: đổi là dừng ngay. Trả về true nếu đọc xong. */
     private suspend fun docDanhSachTuong(): Boolean {
         trangThai("đọc khung tướng")
+        cpu { apDungXacNhan() }
         var (img, k) = chup()
         if (k.manHinh == "man_afk" && "man_afk_chien_dau" in k.nut) {
             AppLog.i("Mở màn đội hình (chưa đánh).")
@@ -962,11 +1010,15 @@ class Leo(private val svc: BotService) {
             arr.put(o)
         }
         File(svc.filesDir, TEP_TUONG).writeText(arr.toString(1))
-        val cuaToi = ds.mapNotNull { t -> t.ten?.let { it to t.khung } }.groupBy({ it.first }, { it.second }).mapValues { it.value.max() }
+        runCatching { luuUngVien(ds) }.onFailure { AppLog.i("Không lưu được thẻ ứng viên: ${it.message}") }
+        val cuaToi = ds.filter { !it.trongDoi }.mapNotNull { t -> t.ten?.let { it to t.khung } }
+            .groupBy({ it.first }, { it.second }).mapValues { it.value.max() }
+        val trongDoi = ds.filter { it.trongDoi && it.ten != null && it.ten !in cuaToi }.mapNotNull { it.ten }.sorted()
         val thieu = cuaToi.filter { (t, kh) -> kh == 0 && (thuVien.coKhung[t] ?: 0.0) >= 0.8 }.keys.sorted()
         AppLog.i("Đọc khung tướng: ${ds.size} thẻ, nhận ra ${cuaToi.size} tướng có trong thư viện. Không khung: " +
             cuaToi.filterValues { it == 0 }.keys.sorted().joinToString(", ").ifEmpty { "không có" } + ".")
         if (thieu.isNotEmpty()) AppLog.i("  Thiếu khung so với bản ghi (bản ghi thường có khung): ${thieu.joinToString(", ")}.")
+        if (trongDoi.isNotEmpty()) AppLog.i("  Đang trong đội (thẻ phủ xanh, chưa đọc được khung - đánh dấu ở màn hình app): ${trongDoi.joinToString(", ")}.")
         ds.filter { it.goiY != null }.forEach { AppLog.i("  Chưa chắc: một thẻ giống ${it.goiY} (${"%.2f".format(it.diem)}).") }
         ds.forEach { it.anh.release(); it.mat.release() }
         return true

@@ -14,8 +14,8 @@ android {
         applicationId = "vn.afkauto.leoai"
         minSdk = 30             // AccessibilityService.takeScreenshot() cần Android 11
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.3"
+        versionCode = 14
+        versionName = "1.4"
     }
 
     // Khóa ký bản phát hành nằm ngoài repo (android/keystore.properties trỏ tới file .jks). Không có thì bản release

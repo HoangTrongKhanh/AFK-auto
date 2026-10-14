@@ -45,6 +45,10 @@ private const val TRONG_DOI_HON = 0.12
 const val CUNG_THE = 0.85           // 2 thẻ (ở 2 lần chụp) khớp mặt >= mức này là cùng một thẻ
 // Chỉ so khung tướng mà bản ghi thường dùng có khung (đo 13/10: thiếu khung Saida thắng 1/14, Mehira 3/5).
 const val KHUNG_CAN = 0.5
+// Nút lọc tròn ở góc dưới phải danh sách đè lên thẻ (máy gốc, bám mép dưới; đo 14/10): bỏ thẻ chạm vùng này, thẻ đó sẽ
+// hiện trọn ở lần chụp khác (vuốt nửa hàng mỗi lần).
+private val NUT_LOC = Box(1410, 2080, 1585, 2255)
+const val QUAN_TRONG = 0.05         // tướng quan trọng: ít nhất bấy nhiêu phần bản ghi dùng tướng này có khung
 
 /** Mặt nạ điểm màu kem của nền bảng. */
 fun nenKem(img: Mat) = Bin.hsv(img, doubleArrayOf(0.0, 0.0, 201.0), doubleArrayOf(180.0, 59.0, 255.0))
@@ -147,17 +151,33 @@ fun dacTrungVien(the: Mat): FloatArray {
 /** Thư viện tướng templates/vi/tuong/ (tao_thu_vien_tuong.py): mặt các tướng đã đặt tên, tỉ lệ có khung của từng tướng
  *  trong bản ghi, thẻ mẫu viền đã biết khung. */
 class ThuVienTuong(
-    val mat: Map<String, List<Mat>>,
+    mat: Map<String, List<Mat>>,
     val coKhung: Map<String, Double>,
-    private val vien: Array<FloatArray>,
-    private val nhanVien: ByteArray,
+    vien: Array<FloatArray>,
+    nhanVien: ByteArray,
     private val mauSao: List<Mat>,
+    val soLan: Map<String, Int> = emptyMap(),
+    val soBanGhi: Int = 0,
 ) {
+    val mat: MutableMap<String, MutableList<Mat>> = mat.mapValues { it.value.toMutableList() }.toMutableMap()
+    private val vien = vien.toMutableList()
+    private val nhanVien = nhanVien.toMutableList()
+
+    /** Mặt tướng bạn đã xác nhận (lấy từ chính danh sách của bạn): đặt lên đầu để lần sau khớp gần như tuyệt đối. */
+    fun themMat(ten: String, m: Mat) { mat.getOrPut(ten) { mutableListOf() }.add(0, m) }
+
+    /** Thẻ danh sách đã biết khung: thêm vào bước xếp theo viền. */
+    fun themVien(f: FloatArray, khung: Int) { vien.add(f); nhanVien.add(khung.toByte()) }
+
     /** 1 = thẻ có khung (phẩm chuẩn), 0 = không khung (phẩm thấp). */
-    fun khung(the: Mat): Int {
+    fun khung(the: Mat): Int = khungTin(the).first
+
+    /** (khung, độ tin): độ tin là khoảng cách của điểm sao tới giữa 2 ngưỡng (càng xa càng chắc). */
+    fun khungTin(the: Mat): Pair<Int, Double> {
         val d = diemSao(the, mauSao)
-        if (d < SAO_KHONG) return 0
-        if (d >= SAO_CO) return 1
+        val tin = kotlin.math.abs(d - (SAO_KHONG + SAO_CO) / 2)
+        if (d < SAO_KHONG) return 0 to tin
+        if (d >= SAO_CO) return 1 to tin
         val f = dacTrungVien(the)
         val kc = vien.indices.map { i ->
             var s = 0.0
@@ -165,7 +185,15 @@ class ThuVienTuong(
             for (j in f.indices) { val t = (v[j] - f[j]).toDouble(); s += t * t }
             s to i
         }.sortedBy { it.first }.take(LANG_GIENG)
-        return if (kc.map { nhanVien[it.second].toInt() }.average() >= 0.5) 1 else 0
+        return (if (kc.map { nhanVien[it.second].toInt() }.average() >= 0.5) 1 else 0) to tin
+    }
+
+    /** Tướng quan trọng: (tên, phần bản ghi dùng tướng này có khung), giảm dần. Bỏ tướng bản ghi ít dùng có khung. */
+    fun quanTrong(): List<Pair<String, Double>> {
+        val n = if (soBanGhi > 0) soBanGhi else maxOf(1, soLan.values.sum() / SO_TUONG)
+        return soLan.filter { (t, sl) -> sl > 0 && (coKhung[t] ?: 0.0) >= KHUNG_CAN }
+            .map { (t, sl) -> t to sl * (coKhung[t] ?: 0.0) / n }
+            .filter { it.second >= QUAN_TRONG }.sortedByDescending { it.second }
     }
 
     /** Điểm khớp cao nhất với từng tướng, giảm dần: list (điểm, tên). */
@@ -178,12 +206,14 @@ class ThuVienTuong(
             val tuong = js.getJSONObject("tuong")
             val mat = mutableMapOf<String, List<Mat>>()
             val coKhung = mutableMapOf<String, Double>()
+            val soLan = mutableMapOf<String, Int>()
             for (t in tuong.keys()) {
                 val o = tuong.getJSONObject(t)
                 val tam = decodeImage(read("vi/tuong/$t.png"))
                 mat[t] = (0 until o.getInt("so_mat")).map { tam.submat(0, MAT_CO, it * MAT_CO, (it + 1) * MAT_CO).clone() }
                 tam.release()
                 coKhung[t] = o.getDouble("co_khung")
+                soLan[t] = o.optInt("so_lan", 0)
             }
             val v = js.getJSONObject("vien")
             val so = v.getInt("so")
@@ -192,7 +222,7 @@ class ThuVienTuong(
             val vien = Array(so) { FloatArray(chieu).also { a -> fb.get(a) } }
             val nhan = read("vi/tuong/vien_nhan.bin")
             val mauSao = listOf("sao_khung_cam", "sao_khung_mong").map { decodeImage(read("vi/$it.png"), Imgcodecs.IMREAD_GRAYSCALE) }
-            return ThuVienTuong(mat, coKhung, vien, nhan, mauSao)
+            return ThuVienTuong(mat, coKhung, vien, nhan, mauSao, soLan, js.optInt("so_ban_ghi", 0))
         }
     }
 }
@@ -273,8 +303,11 @@ fun catTheDanhSach(img: Mat, cot0: CotDanhSach?): Pair<List<TheDanhSach>, CotDan
         nho0.release()
         val xam = Mat()
         Imgproc.cvtColor(vung, xam, Imgproc.COLOR_BGR2GRAY)
+        val ly0 = h - (REF_H - NUT_LOC.y0) - y0
+        val ly1 = h - (REF_H - NUT_LOC.y1) - y0
         val out = mutableListOf<TheDanhSach>()
         for ((ha, hb) in hang) for ((ca, cb) in cot.cot) {
+            if (ca < NUT_LOC.x1 && cb > NUT_LOC.x0 && ha < ly1 && hb > ly0) continue     // bị nút lọc che
             // Ô trống gần như một màu; thẻ tướng lông trắng (Faramor) có nhiều điểm giống màu kem nên ngưỡng kem thấp.
             val o2 = kem.crop(ca, ha, cb, hb)
             if (1.0 - o2.mean() < 0.35) continue
@@ -304,7 +337,9 @@ fun matTheDanhSach(the: Mat): Mat {
 fun trongDoi(the: Mat) = Bin.hsv(the, doubleArrayOf(35.0, 61.0, 0.0), doubleArrayOf(85.0, 255.0, 255.0)).mean() >= XANH_TRONG_DOI
 
 /** Một thẻ trong danh sách tướng của bạn. */
-class TuongCuaToi(val anh: Mat, val mat: Mat, val khung: Int, val trongDoi: Boolean) {
+class TuongCuaToi(var anh: Mat, val mat: Mat, var khung: Int, val trongDoi: Boolean) {
+    /** (khung, độ tin) của từng lần thấy thẻ này. */
+    val lan = mutableListOf<Pair<Int, Double>>()
     var ten: String? = null
     var goiY: String? = null
     var diem = 0.0
@@ -345,19 +380,28 @@ class DocDanhSach(private val tv: ThuVienTuong) {
     private var cot: CotDanhSach? = null
     val tuong = mutableListOf<TuongCuaToi>()
 
-    /** Thêm các thẻ của một ảnh chụp danh sách; trả về số thẻ mới. */
+    /** Thêm các thẻ của một ảnh chụp danh sách; trả về số thẻ mới. Một thẻ thường hiện ở 2-3 lần chụp: khung lấy theo
+     *  đa số các lần, hoà thì theo lần chắc nhất; ảnh thẻ giữ lần chắc nhất. */
     fun them(img: Mat): Int {
         val (ds, c) = catTheDanhSach(img, cot)
         if (cot == null) cot = c
         var moi = 0
         for (t in ds) {
             val m = matTheDanhSach(t.anh)
-            if (tuong.any { giongMat(m, it.mat) >= CUNG_THE }) {
-                t.anh.release(); m.release()
+            val kt = tv.khungTin(t.anh)
+            val cu = tuong.firstOrNull { giongMat(m, it.mat) >= CUNG_THE }
+            if (cu == null) {
+                tuong.add(TuongCuaToi(t.anh, m, kt.first, trongDoi(t.anh)).also { it.lan.add(kt) })
+                moi++
                 continue
             }
-            tuong.add(TuongCuaToi(t.anh, m, tv.khung(t.anh), trongDoi(t.anh)))
-            moi++
+            m.release()
+            val chacNhat = cu.lan.maxOf { it.second }
+            cu.lan.add(kt)
+            if (kt.second > chacNhat) { cu.anh.release(); cu.anh = t.anh } else t.anh.release()
+            val co = cu.lan.count { it.first == 1 }
+            val khong = cu.lan.size - co
+            cu.khung = if (co > khong) 1 else if (khong > co) 0 else cu.lan.maxBy { it.second }.first
         }
         return moi
     }

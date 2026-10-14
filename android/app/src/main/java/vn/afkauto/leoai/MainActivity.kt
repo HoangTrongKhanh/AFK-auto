@@ -5,6 +5,14 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import java.io.File
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -118,6 +126,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         BotService.instance?.setAppScreenOpen(true)
+        veKhungTuong()
         showSteps()
         showStatus()
         AppLog.addListener(logListener)
@@ -181,6 +190,113 @@ class MainActivity : Activity() {
         val asked = p.getBoolean("asked_notify", false)
         p.edit().putBoolean("asked_notify", true).apply()
         return asked
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    /** Mục "Khung tướng của bạn": mỗi tướng quan trọng một dòng (ảnh mặt, %, thẻ ứng viên, Đúng tướng, khung). */
+    private fun veKhungTuong() {
+        val box = findViewById<LinearLayout>(R.id.khungTuong)
+        box.removeAllViews()
+        val ds = KhungTuong.quanTrong(this)
+        val tay = KhungTuong.docTay(filesDir)
+        val tuDoc = KhungTuong.docTuDoc(filesDir)
+        val ungVien = KhungTuong.docUngVien(filesDir)
+        val xacNhan = KhungTuong.docXacNhan(filesDir)
+        for (q in ds) box.addView(dongTuong(q, tay, tuDoc[q.ten], ungVien[q.ten].orEmpty(), xacNhan))
+    }
+
+    private fun matThuVien(ten: String): Bitmap? = runCatching {
+        val tam = assets.open("vi/tuong/$ten.png").use { BitmapFactory.decodeStream(it) }
+        Bitmap.createBitmap(tam, 0, 0, minOf(48, tam.width), minOf(48, tam.height))
+    }.getOrNull()
+
+    private fun dongTuong(
+        q: KhungTuong.TuongQuanTrong, tay: MutableMap<String, Int>, tuDoc: Int?,
+        ungVien: List<KhungTuong.UngVien>, xacNhan: MutableMap<String, KhungTuong.XacNhan>,
+    ): View {
+        val ten = q.ten
+        val dong = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
+        val tren = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        tren.addView(ImageView(this).apply {
+            matThuVien(ten)?.let { setImageBitmap(it) }
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+        })
+        val chuTuDoc = when (tuDoc) {
+            1 -> "có khung"; 0 -> "không khung"; KhungTuong.TRONG_DOI -> "đang trong đội, chưa đọc được"; else -> "không thấy"
+        }
+        tren.addView(TextView(this).apply {
+            text = "$ten · ${"%.0f".format(q.phan * 100)}% bản ghi\nTự đọc: $chuTuDoc"
+            setPadding(dp(10), 0, dp(6), 0)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val anhThe = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(58), dp(92))
+        }
+        val dung = CheckBox(this).apply { text = "Đúng\ntướng" }
+        tren.addView(anhThe)
+        tren.addView(dung)
+        dong.addView(tren)
+
+        val fileXn = File(filesDir, "${KhungTuong.THU_MUC_XAC_NHAN}/$ten.png")
+        var chiSo = 0
+        fun hien() {
+            val f = if (xacNhan[ten] != null && fileXn.exists()) fileXn else ungVien.getOrNull(chiSo)?.let { File(filesDir, it.anh) }
+            val bmp = f?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
+            anhThe.visibility = if (bmp != null) View.VISIBLE else View.GONE
+            // Thẻ đang trong đội bị phủ xanh: không dùng làm mẫu.
+            val phuXanh = xacNhan[ten] == null && ungVien.getOrNull(chiSo)?.trongDoi == true
+            dung.visibility = if (bmp != null && !phuXanh) View.VISIBLE else View.INVISIBLE
+            bmp?.let { anhThe.setImageBitmap(it) }
+        }
+        dung.isChecked = xacNhan[ten] != null && fileXn.exists()
+        hien()
+        anhThe.setOnClickListener {
+            if (ungVien.isEmpty()) return@setOnClickListener
+            if (xacNhan.remove(ten) != null) {             // đang xem thẻ đã xác nhận: chuyển sang các thẻ ứng viên
+                fileXn.delete()
+                KhungTuong.ghiXacNhan(filesDir, xacNhan)
+                dung.setOnCheckedChangeListener(null); dung.isChecked = false; ganDung(dung, ten, tay, ungVien, xacNhan, fileXn) { chiSo }
+            } else chiSo = (chiSo + 1) % ungVien.size
+            hien()
+        }
+        ganDung(dung, ten, tay, ungVien, xacNhan, fileXn) { chiSo }
+
+        val nhom = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
+        val chon = listOf(KhungTuong.CO to "Có khung", KhungTuong.KHONG to "Không khung", KhungTuong.CHUA_CO to "Chưa có")
+        val nut = chon.map { (v, chu) -> RadioButton(this).apply { text = chu; id = View.generateViewId(); tag = v } }
+        nut.forEach { nhom.addView(it) }
+        tay[ten]?.let { v -> nut.firstOrNull { it.tag == v }?.isChecked = true }
+        nhom.setOnCheckedChangeListener { g, id ->
+            val v = g.findViewById<RadioButton>(id)?.tag as? Int ?: return@setOnCheckedChangeListener
+            tay[ten] = v
+            KhungTuong.ghiTay(filesDir, tay)
+            xacNhan[ten]?.let { x -> if (v != KhungTuong.CHUA_CO) { xacNhan[ten] = x.copy(khung = v); KhungTuong.ghiXacNhan(filesDir, xacNhan) } }
+        }
+        dong.addView(nhom)
+        return dong
+    }
+
+    /** Tích "Đúng tướng": lưu thẻ đang xem làm thẻ xác nhận của tướng đó (khung theo lựa chọn của bạn, chưa chọn thì theo
+     *  kết quả tự đọc của thẻ); bỏ tích thì xoá. Bot áp dụng ở lần chạy hoặc lần đọc khung sau. */
+    private fun ganDung(
+        dung: CheckBox, ten: String, tay: Map<String, Int>, ungVien: List<KhungTuong.UngVien>,
+        xacNhan: MutableMap<String, KhungTuong.XacNhan>, fileXn: File, chiSo: () -> Int,
+    ) {
+        dung.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                val uv = ungVien.getOrNull(chiSo()) ?: return@setOnCheckedChangeListener
+                fileXn.parentFile?.mkdirs()
+                File(filesDir, uv.anh).copyTo(fileXn, overwrite = true)
+                val k = tay[ten]?.takeIf { it != KhungTuong.CHUA_CO } ?: uv.khung
+                xacNhan[ten] = KhungTuong.XacNhan("${KhungTuong.THU_MUC_XAC_NHAN}/$ten.png", k)
+            } else {
+                xacNhan.remove(ten)
+                fileXn.delete()
+            }
+            KhungTuong.ghiXacNhan(filesDir, xacNhan)
+        }
     }
 
     private fun bindCheck(id: Int, prop: KMutableProperty0<Boolean>) {

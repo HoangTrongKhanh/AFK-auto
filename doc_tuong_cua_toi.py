@@ -10,6 +10,11 @@ Tướng được nhận ra bằng cách so ảnh mặt với các nhóm tướn
 
     .venv/bin/python doc_tuong_cua_toi.py --serial R52N90Q08XR       # đọc trên máy rồi xuất trang so sánh
     .venv/bin/python doc_tuong_cua_toi.py --anh samples/tab_s7_doi_hinh_man_afk.png   # thử trên ảnh có sẵn
+    .venv/bin/python doc_tuong_cua_toi.py --khung                     # khung các tướng quan trọng (tự đọc / bạn đánh dấu)
+    .venv/bin/python doc_tuong_cua_toi.py --khung Eryndor=1 Silven=1  # đánh dấu: 1 có khung, 0 không khung, -1 chưa có
+
+Khung bạn đánh dấu (thu_thap_tuong/khung_tay.json) luôn được dùng thay cho kết quả tự đọc. Chỉ cần đánh dấu các tướng
+quan trọng: tướng mà ít nhất 5% bản ghi dùng có khung (xem --khung).
 """
 import argparse
 import html
@@ -32,6 +37,8 @@ THU_MUC = BASE / "thu_thap_tuong"
 KET_QUA = THU_MUC / "tuong_cua_toi.json"
 ANH = THU_MUC / "tuong_cua_toi"
 MAT_XAC_NHAN = THU_MUC / "mat_xac_nhan"
+KHUNG_TAY = THU_MUC / "khung_tay.json"      # {tên: 1 có khung | 0 không khung | -1 chưa có tướng}, bạn tự đánh dấu
+VIEN_THEM = THU_MUC / "vien_them.npz"       # đặc trưng viền của thẻ danh sách đã xác nhận (thêm vào bước xếp khung)
 THU_VIEN = TPL_DIR / "tuong"   # ảnh mặt tướng bạn đã xác nhận (tên file = tên tướng): thêm vào thư viện
 
 # Toạ độ máy gốc 1600x2560. Danh sách tướng nằm trên hàng nút Thành Tích / Chiến Đấu nên bám mép dưới.
@@ -51,6 +58,10 @@ NHAN_TRONG_DOI = (0.5, 0.12)  # thẻ đang trong đội: khớp >= 0.5 và hơn
 # không khung, bản ghi chỉ có khung 26%) thắng 3/5, ngang các đội không thiếu khung (15/20).
 KHUNG_CAN = 0.5
 CUNG_THE = 0.85             # 2 thẻ (ở 2 lần chụp) khớp mặt >= mức này là cùng một thẻ
+# Nút lọc tròn ở góc dưới phải danh sách đè lên thẻ (máy gốc, bám mép dưới; đo 14/10): bỏ thẻ chạm vùng này, thẻ đó sẽ
+# hiện trọn ở lần chụp khác (vuốt nửa hàng mỗi lần).
+NUT_LOC = (1410, 2080, 1585, 2255)
+QUAN_TRONG = 0.05           # tướng quan trọng: ít nhất bấy nhiêu phần bản ghi dùng tướng này có khung
 
 
 def doan(mask, do_dai=1):
@@ -100,9 +111,12 @@ def cat_the(img, cot=None):
     nho = cv2.resize(vung, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
     nho = cv2.copyMakeBorder(nho, 40, 40, 80, 80, cv2.BORDER_REPLICATE)
     xam = cv2.cvtColor(vung, cv2.COLOR_BGR2GRAY)
+    lx0, ly0, lx1, ly1 = NUT_LOC[0], h - (2560 - NUT_LOC[1]) - y0, NUT_LOC[2], h - (2560 - NUT_LOC[3]) - y0
     out = []
     for ha, hb in hang:
         for ca, cb in cot:
+            if ca < lx1 and cb > lx0 and ha < ly1 and hb > ly0:     # bị nút lọc che
+                continue
             # Ô trống (cuối danh sách) hoặc ô chụp lúc còn trôi: phần lớn là nền kem / gần như một màu.
             # Ô trống: gần như toàn màu kem. Thẻ tướng lông trắng (Faramor) có nhiều điểm giống màu kem nên ngưỡng kem thấp.
             if (~kem[ha:hb, ca:cb]).mean() < 0.35 or xam[ha:hb, ca:cb].std() < 15:   # thẻ phủ xanh ~26
@@ -137,6 +151,7 @@ class ThuVien:
             self.mat[tn] = [tam[:, i * o:(i + 1) * o] for i in range(x["so_mat"])]
             self.dem[tn] = x["so_lan"]
             self.ty_le_khung[tn] = x["co_khung"] * x["so_lan"]
+        self.so_ban_ghi = js.get("so_ban_ghi") or max(1, sum(self.dem.values()) // 5)
         # Mặt đã xác nhận lấy từ chính danh sách của bạn (--xac-nhan): lần sau khớp gần như tuyệt đối.
         for f in sorted(MAT_XAC_NHAN.glob("*.png")) if MAT_XAC_NHAN.exists() else []:
             self.mat.setdefault(f.stem.split("~")[0], []).insert(0, cv2.imread(str(f)))
@@ -144,15 +159,30 @@ class ThuVien:
         self.vien = np.fromfile(THU_VIEN / "vien.bin", dtype="<f4").reshape(v["so"], v["chieu"])
         self.nhan_khung = np.fromfile(THU_VIEN / "vien_nhan.bin", dtype=np.uint8).astype(int)
         self.mau_sao = [cv2.imread(str(TPL_DIR / t), cv2.IMREAD_GRAYSCALE) for t in T.MAU_SAO]
+        if VIEN_THEM.exists():                    # thẻ danh sách bạn đã xác nhận (--xac-nhan)
+            z = np.load(VIEN_THEM)
+            self.vien = np.vstack([self.vien, z["vien"]])
+            self.nhan_khung = np.concatenate([self.nhan_khung, z["nhan"].astype(int)])
+
+    def quan_trong(self):
+        """[(tên, phần bản ghi dùng tướng này có khung)] của các tướng quan trọng, giảm dần."""
+        ds = [(t, self.ty_le_khung[t] / self.so_ban_ghi) for t in self.dem
+              if self.dem[t] and self.ty_le_khung[t] / self.dem[t] >= KHUNG_CAN]   # Mehira: bản ghi ít dùng có khung
+        return sorted(((t, p) for t, p in ds if p >= QUAN_TRONG), key=lambda x: -x[1])
 
     def khung(self, the):
+        return self.khung_tin(the)[0]
+
+    def khung_tin(self, the):
+        """(khung, độ tin): độ tin là khoảng cách của điểm sao tới giữa 2 ngưỡng (càng xa càng chắc)."""
         d = T.diem_sao(the, self.mau_sao)
+        tin = abs(d - (T.SAO_KHONG + T.SAO_CO) / 2)
         if d < T.SAO_KHONG:
-            return 0
+            return 0, tin
         if d >= T.SAO_CO:
-            return 1
+            return 1, tin
         gan = np.argsort(((self.vien - T.dac_trung_vien(the)) ** 2).sum(axis=1))[:7]
-        return int(self.nhan_khung[gan].mean() >= 0.5)
+        return int(self.nhan_khung[gan].mean() >= 0.5), tin
 
     def diem(self, m):
         """Điểm khớp cao nhất với từng tướng, giảm dần: list (điểm, tên)."""
@@ -200,10 +230,13 @@ class SoKhung:
         self.cua_toi = {}           # tên tướng -> khung (1/0)
         self.mat_cua_toi = []       # (ảnh mặt, khung) của thẻ không bị phủ xanh: so trực tiếp khi chưa biết tên tướng
         for x in ds:
-            if x.get("ten"):
+            # Thẻ tướng đang trong đội bị game phủ xanh: khung đọc không tin được (14/10: Eryndor có khung đọc thành không).
+            if x.get("ten") and not x["trong_doi"]:
                 self.cua_toi[x["ten"]] = max(self.cua_toi.get(x["ten"], 0), x["khung"])
             if not x["trong_doi"]:
                 self.mat_cua_toi.append((mat(cv2.imread(str(THU_MUC / x["anh"]))), x["khung"]))
+        for ten, k in doc_khung_tay().items():     # bạn đánh dấu: luôn thay kết quả tự đọc
+            self.cua_toi[ten] = 1 if k == 1 else 0
 
     def khung_cua_toi(self, m):
         """(tên hoặc None, khung của bạn hoặc None nếu không thấy tướng này trong danh sách của bạn)."""
@@ -237,6 +270,29 @@ class SoKhung:
 _doc_dai = None
 
 
+def doc_khung_tay():
+    return json.loads(KHUNG_TAY.read_text(encoding="utf-8")) if KHUNG_TAY.exists() else {}
+
+
+def khung_tay(gan):
+    """--khung: in khung các tướng quan trọng; gan = ["Eryndor=1", ...] thì lưu trước."""
+    tay = doc_khung_tay()
+    for g in gan:
+        ten, v = g.split("=", 1)
+        tay[ten] = int(v)
+    if gan:
+        KHUNG_TAY.write_text(json.dumps(tay, ensure_ascii=False, indent=1), encoding="utf-8")
+    tu_doc = {}
+    if KET_QUA.exists():
+        for x in json.loads(KET_QUA.read_text(encoding="utf-8")):
+            if x.get("ten") and not x["trong_doi"]:
+                tu_doc[x["ten"]] = max(tu_doc.get(x["ten"], 0), x["khung"])
+    chu = {1: "có khung", 0: "KHÔNG khung", -1: "chưa có"}
+    print("Tướng quan trọng (phần bản ghi dùng có khung) · tự đọc · bạn đánh dấu:")
+    for ten, p in ThuVien().quan_trong():
+        print(f"  {ten:10s} {p:4.0%}  {chu.get(tu_doc.get(ten), 'không thấy'):11s}  {chu.get(tay.get(ten), '-')}")
+
+
 def DocThanhTich_dai(img):
     """Dải thẻ tướng của đội đang hiện trong Thành Tích (thanh_tich.DocThanhTich.dai_tuong)."""
     global _doc_dai
@@ -246,16 +302,25 @@ def DocThanhTich_dai(img):
 
 
 def doc(anh_list, tv):
-    """Đọc các ảnh chụp danh sách (theo thứ tự vuốt), bỏ thẻ trùng giữa các lần chụp."""
+    """Đọc các ảnh chụp danh sách (theo thứ tự vuốt). Một thẻ thường hiện ở 2-3 lần chụp: khung lấy theo đa số các lần,
+    hoà thì theo lần chắc nhất; ảnh thẻ giữ lần chắc nhất."""
     tuong, cot = [], None
     for img in anh_list:
         ds, c = cat_the(img, cot)
         cot = cot or c
         for the, _ in ds:
             m = mat(the)
-            if any(T.giong(m, x["mat"]) >= CUNG_THE for x in tuong):
+            k, tin = tv.khung_tin(the)
+            cu = next((x for x in tuong if T.giong(m, x["mat"]) >= CUNG_THE), None)
+            if cu is None:
+                tuong.append(dict(khung=k, trong_doi=trong_doi(the), the=the, mat=m, lan=[(k, tin)]))
                 continue
-            tuong.append(dict(khung=tv.khung(the), trong_doi=trong_doi(the), the=the, mat=m))
+            cu["lan"].append((k, tin))
+            if tin > max(t for _, t in cu["lan"][:-1]):
+                cu["the"] = the
+            co = sum(kk for kk, _ in cu["lan"])
+            khong = len(cu["lan"]) - co
+            cu["khung"] = 1 if co > khong else 0 if khong > co else max(cu["lan"], key=lambda x: x[1])[0]
     return gan_ten(tuong, tv)
 
 
@@ -372,15 +437,28 @@ def main():
     ap.add_argument("--anh", nargs="+", help="đọc từ ảnh chụp có sẵn thay vì chụp trên máy")
     ap.add_argument("--xac-nhan", nargs="+", metavar="SO=TEN",
                     help="xác nhận thẻ số SO (trong trang tuong_cua_toi.html) là tướng TEN, rồi gán tên lại không cần máy")
+    ap.add_argument("--khung", nargs="*", metavar="TEN=1|0|-1",
+                    help="in khung các tướng quan trọng; kèm TEN=GIÁ_TRỊ thì đánh dấu (1 có khung, 0 không, -1 chưa có)")
     a = ap.parse_args()
+    if a.khung is not None:
+        khung_tay(a.khung)
+        return
     if a.xac_nhan:
         ds = json.loads(KET_QUA.read_text(encoding="utf-8"))
         MAT_XAC_NHAN.mkdir(parents=True, exist_ok=True)
+        tay = doc_khung_tay()
+        vien, nhan = ([], []) if not VIEN_THEM.exists() else map(list, (np.load(VIEN_THEM)[k] for k in ("vien", "nhan")))
         for xn in a.xac_nhan:
             so, ten = xn.split("=", 1)
             the = cv2.imread(str(THU_MUC / ds[int(so) - 1]["anh"]))
             cv2.imwrite(str(MAT_XAC_NHAN / f"{ten}~{int(time.time())}.png"), mat(the))
+            if not ds[int(so) - 1]["trong_doi"]:    # thẻ phủ xanh không dùng làm mẫu viền
+                k = tay.get(ten, ds[int(so) - 1]["khung"])
+                vien.append(T.dac_trung_vien(the).astype("<f4"))
+                nhan.append(1 if k == 1 else 0)
             print(f"Đã lưu mặt thẻ {so} là {ten}.")
+        if vien:
+            np.savez(VIEN_THEM, vien=np.array(vien, dtype="<f4"), nhan=np.array(nhan, dtype=np.uint8))
         tv = ThuVien()
         tuong = []
         for x in ds:
