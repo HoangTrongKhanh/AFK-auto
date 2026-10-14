@@ -341,6 +341,17 @@
    "le": 80,
    "nguong": 0.8
   },
+  "xu_ly_xong_chu": {
+   "hop": [
+    12,
+    2460,
+    228,
+    2498
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
   "xu_ly_hoan_tat": {
    "hop": [
     165,
@@ -486,6 +497,12 @@
    "ten": "xu_ly_xong",
    "can": [
     "xu_ly_xong_nut_2"
+   ]
+  },
+  {
+   "ten": "xu_ly_xong",
+   "can": [
+    "xu_ly_xong_chu"
    ]
   },
   {

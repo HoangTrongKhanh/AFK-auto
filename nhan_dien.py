@@ -87,6 +87,9 @@ MAU = {
     "xu_ly_xong_bong": Mau("tab_s7_ban_do_xu_ly_xong", (75, 2180, 375, 2225), "duoi"),
     "xu_ly_xong_nut": Mau("tab_s7_ban_do_xu_ly_xong", (90, 2515, 170, 2550), "duoi"),
     "xu_ly_xong_nut_2": Mau("tab_s7_ban_do_xu_ly_xong_2", (75, 2500, 195, 2545), "duoi"),     # "Tự Động Xử Lý Xong!"
+    # Dòng "Tự Động Xử Lý" (không có "...") trên nền vàng: đứng yên, còn chữ "Xong!" / "Đã Hoàn Thành!" phóng to thu nhỏ.
+    # Lúc đang đánh ngầm có "..." và nền tối (mẫu xu_ly_ban_do, xét trước).
+    "xu_ly_xong_chu": Mau("tab_s7_ban_do_xu_ly_xong_2", (12, 2460, 228, 2498), "duoi"),
     "xu_ly_hoan_tat": Mau("tab_s7_xu_ly_hoan_tat", (165, 600, 775, 690), "giua", 200),
     # Bảng bán gói (Kim cương) bật lên khi đạt mốc ải, ví dụ "Gói Lầu Ngắm Sao" ở Đỉnh Cao 600 (14/10). Bot chỉ bấm dòng
     # "Nhấn để thoát" ở đáy, không bao giờ bấm nút mua.
@@ -113,6 +116,7 @@ MAN_HINH = [
     ("xu_ly_xong", ["xu_ly_xong_bong"]),
     ("xu_ly_xong", ["xu_ly_xong_nut"]),
     ("xu_ly_xong", ["xu_ly_xong_nut_2"]),
+    ("xu_ly_xong", ["xu_ly_xong_chu"]),
     ("thanh_tich", ["tt_sao_chep", "tt_nhan_de_dong"]),
     # Nút "Thử Lại" chỉ có ở màn BẠI; mục "Lời Khuyên Chiến Trận" có lúc không hiện (chỉ còn "Tăng Sức Mạnh").
     ("bai", ["bai_thu_lai"]),
