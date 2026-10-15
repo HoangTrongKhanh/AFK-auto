@@ -69,7 +69,8 @@ COT_THU_THAP = ["thoi_gian", "luot", "che_do", "ai", "vi_tri", "luc_chien", "nha
                 "anh"]
 
 TEN_CHE_DO = {"afk": "Màn AFK", "huyen_linh": "Thách Đấu Huyền Linh"}
-NUT_CHE_DO = {"afk": "man_afk_chien_dau", "huyen_linh": "man_afk_huyen_linh"}
+# Nút vào từng chế độ ở Màn AFK; hết ải một phần thì phần còn lại thành 1 nút ngang (mẫu khác).
+NUT_CHE_DO = {"afk": ["man_afk_chien_dau", "man_afk_chien_dau_ngang"], "huyen_linh": ["man_afk_huyen_linh"]}
 
 
 class Dung(Exception):
@@ -344,7 +345,7 @@ class LeoAi:
         self.cap_nhat_tien_trinh(self.so.ai_man_afk(img))
         # Mỗi giai đoạn, phần Chiến Đấu và phần Thách Đấu Huyền Linh có số ải giới hạn; hết ải phần nào thì Màn AFK chỉ
         # còn 1 nút ngang. Thiếu nút vài lần liền (không phải do đang chuyển cảnh) mới tính là hết.
-        co_nut = [c for c, n in NUT_CHE_DO.items() if n in k.nut]
+        co_nut = [c for c in NUT_CHE_DO if nut_che_do(k, c)]
         if not co_nut:
             self.thieu_ca_hai += 1
             if self.thieu_ca_hai >= THIEU_NUT_TOI_DA:
@@ -371,10 +372,11 @@ class LeoAi:
                 raise Dung(f"Không leo tiếp được ở ải {self.tien_trinh or '?'} ({ly_do}).")
             self.hien = con[0].ten
             log.info("Chuyển sang %s.", TEN_CHE_DO[self.hien])
-        if NUT_CHE_DO[self.hien] not in k.nut:
+        nut = nut_che_do(k, self.hien)
+        if nut is None:
             time.sleep(CHO_KHONG_RO)                # chờ xem nút có thật sự mất không
             return
-        self.bam(k, NUT_CHE_DO[self.hien], cho=2.5)
+        self.bam(k, nut, cho=2.5)
 
     def xu_ly_doi_hinh(self, img, k):
         cd = self.cd[self.hien]
@@ -832,6 +834,11 @@ class LeoAi:
         if tot is None and self.a.thieu_khung == "cuoi":
             tot = next(iter(ung), None)
         return tot
+
+
+def nut_che_do(k: KetQua, che_do):
+    """Tên mẫu nút vào chế độ đang thấy ở Màn AFK, None nếu không có."""
+    return next((n for n in NUT_CHE_DO[che_do] if n in k.nut), None)
 
 
 def trieu(luc_chien):

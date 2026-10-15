@@ -47,6 +47,8 @@ MAU = {
     "man_afk_tieu_de": Mau("tab_s7_man_afk", (114, 1195, 490, 1290), "giua", 200),
     "man_afk_chien_dau": Mau("tab_s7_man_afk", (1043, 2095, 1490, 2190), "duoi"),
     "man_afk_huyen_linh": Mau("tab_s7_man_afk", (228, 2060, 735, 2130), "duoi"),
+    # Phần Thách Đấu Huyền Linh đã hết ải: chỉ còn 1 nút Chiến Đấu ngang, chữ ở giữa màn hình (15/10, ải 930).
+    "man_afk_chien_dau_ngang": Mau("tab_s7_man_afk_mot_nut", (600, 2100, 990, 2180), "duoi"),
     # Màn đội hình (sau khi bấm Chiến Đấu / Thách Đấu Huyền Linh)
     "doi_hinh_thanh_tich": Mau("tab_s7_doi_hinh_man_afk", (290, 2320, 510, 2465), "duoi"),
     "doi_hinh_tu_dong": Mau("tab_s7_doi_hinh_man_afk", (560, 2340, 1010, 2420), "duoi"),
@@ -133,7 +135,7 @@ MAN_HINH = [
 XU_LY_TOI = ["xu_ly_ban_do", "xu_ly_man_afk"]     # mẫu vẫn dò khi màn hình tối (bị khóa)
 
 NUT_THEM = {
-    "man_afk": ["man_afk_chien_dau", "man_afk_huyen_linh", "nut_quay_lai"],
+    "man_afk": ["man_afk_chien_dau", "man_afk_chien_dau_ngang", "man_afk_huyen_linh", "nut_quay_lai"],
     "doi_hinh": ["tieu_de_mua_giai", "tieu_de_huyen", "nut_quay_lai"],
     "thanh_tich": ["tt_mui_ten_phai", "tt_mui_ten_trai", "tt_o_loc_chu", "tt_nam_dam"],
     "bai": ["nut_quay_lai", "bai_loi_khuyen"],

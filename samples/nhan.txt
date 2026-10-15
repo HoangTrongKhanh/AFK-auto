@@ -46,3 +46,4 @@ tab_s7_ban_do_dinh_cao.png ban_do
 tab_s7_goi_ban_nhan_de_thoat.png bang_ban_goi
 tab_s7_ban_do_xu_ly_xong_2.png xu_ly_xong
 tab_s7_ban_do_xu_ly_xong_3.png xu_ly_xong
+tab_s7_man_afk_mot_nut.png man_afk

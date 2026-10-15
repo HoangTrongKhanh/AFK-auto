@@ -33,6 +33,17 @@
    "le": 80,
    "nguong": 0.8
   },
+  "man_afk_chien_dau_ngang": {
+   "hop": [
+    600,
+    2100,
+    990,
+    2180
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
   "doi_hinh_thanh_tich": {
    "hop": [
     290,
@@ -562,6 +573,7 @@
  "nut_them": {
   "man_afk": [
    "man_afk_chien_dau",
+   "man_afk_chien_dau_ngang",
    "man_afk_huyen_linh",
    "nut_quay_lai"
   ],

@@ -10,7 +10,7 @@ from unittest import mock
 
 import cv2
 
-from leo_ai import CheDo, LeoAi
+from leo_ai import THIEU_NUT_TOI_DA, CheDo, LeoAi
 from nhan_dien import SAMPLES
 from thanh_tich import cung_doi
 
@@ -162,6 +162,23 @@ class TestTuDong(unittest.TestCase):
         self.assertEqual(cd.thua, 1)
         self.assertTrue(cd.can_doi)                    # đội mang sang chỉ được 1 trận: chép đội khác
         self.assertEqual(len(b.adb.bam), 2)
+
+
+class TestMotNut(unittest.TestCase):
+    def test_huyen_linh_het_ai_thi_sang_chien_dau(self):
+        """Huyền Linh đã hết ải (15/10, ải 930): Màn AFK chỉ còn 1 nút Chiến Đấu ngang. Chế độ Cả hai bỏ Huyền Linh và bấm
+        nút ngang để leo Màn AFK."""
+        b = bot()
+        b.adb = AdbGia()
+        img = cv2.imread(str(SAMPLES / "tab_s7_man_afk_mot_nut.png"))
+        k = b.nd.nhan_dien(img)
+        self.assertEqual(b.hien, "huyen_linh")
+        with mock.patch("leo_ai.time.sleep"):
+            for _ in range(THIEU_NUT_TOI_DA):
+                b.xu_ly_man_afk(img, k)
+        self.assertTrue(b.cd["huyen_linh"].het)
+        self.assertEqual(b.hien, "afk")
+        self.assertEqual(b.adb.bam, [k.nut["man_afk_chien_dau_ngang"]])
 
 
 class TestSoTran(unittest.TestCase):

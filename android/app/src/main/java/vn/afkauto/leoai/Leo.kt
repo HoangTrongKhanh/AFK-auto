@@ -58,7 +58,12 @@ private const val UNG_VIEN_TOI_THIEU = 0.45      // thẻ ứng viên của mộ
 private const val COT_CSV = "thoi_gian,che_do,ai,loai,vi_tri,doi,luc_ban_ghi,luc_doi,ty_le,tran_thu,thieu_khung,ket_qua,chuoi,giay"
 
 private val TEN_CHE_DO = mapOf("afk" to "Màn AFK", "huyen_linh" to "Thách Đấu Huyền Linh")
-private val NUT_CHE_DO = mapOf("afk" to "man_afk_chien_dau", "huyen_linh" to "man_afk_huyen_linh")
+// Nút vào từng chế độ ở Màn AFK; hết ải một phần thì phần còn lại thành 1 nút ngang (mẫu khác).
+private val NUT_CHE_DO = mapOf("afk" to listOf("man_afk_chien_dau", "man_afk_chien_dau_ngang"),
+    "huyen_linh" to listOf("man_afk_huyen_linh"))
+
+/** Tên mẫu nút vào chế độ đang thấy ở Màn AFK, null nếu không có. */
+private fun nutCheDo(k: KetQua, cheDo: String) = NUT_CHE_DO.getValue(cheDo).firstOrNull { it in k.nut }
 
 /** Leo ải: mỗi vòng chụp màn hình, nhận ra đang ở màn nào rồi làm đúng một việc ở màn đó. */
 class Leo(private val svc: BotService) {
@@ -311,7 +316,7 @@ class Leo(private val svc: BotService) {
         capNhatTienTrinh(cpu { so.aiManAfk(img) })
         // Mỗi giai đoạn, phần Chiến Đấu và phần Thách Đấu Huyền Linh có số ải giới hạn; hết ải phần nào thì Màn AFK chỉ
         // còn 1 nút ngang. Thiếu nút vài lần liền (không phải do đang chuyển cảnh) mới tính là hết.
-        val coNut = NUT_CHE_DO.filterValues { it in k.nut }.keys
+        val coNut = NUT_CHE_DO.keys.filter { nutCheDo(k, it) != null }
         if (coNut.isEmpty()) {
             if (++thieuCaHai >= THIEU_NUT_TOI_DA) {
                 svc.saveImage(img, "man-afk-mot-nut", force = true)
@@ -338,8 +343,8 @@ class Leo(private val svc: BotService) {
             hien = con.first().ten
             AppLog.i("Chuyển sang ${tenCheDo(hien)}.")
         }
-        val nut = NUT_CHE_DO.getValue(hien)
-        if (nut !in k.nut) {
+        val nut = nutCheDo(k, hien)
+        if (nut == null) {
             delay(CHO_KHONG_RO)                     // chờ xem nút có thật sự mất không
             return
         }
@@ -923,10 +928,11 @@ class Leo(private val svc: BotService) {
         trangThai("đọc khung tướng")
         cpu { apDungXacNhan() }
         var (img, k) = chup()
-        if (k.manHinh == "man_afk" && "man_afk_chien_dau" in k.nut) {
+        val nutAfk = nutCheDo(k, "afk")
+        if (k.manHinh == "man_afk" && nutAfk != null) {
             AppLog.i("Mở màn đội hình (chưa đánh).")
             img.release()
-            bam(k, "man_afk_chien_dau", 1500)
+            bam(k, nutAfk, 1500)
             for (lan in 0 until 8) {
                 val r = chup(); img = r.first; k = r.second
                 if (k.manHinh == "doi_hinh") break
