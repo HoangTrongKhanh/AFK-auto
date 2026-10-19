@@ -140,6 +140,12 @@ class DocThanhTich:
         # chỉ đọc được "5K"): lực chiến đội dưới 1M là đọc sai.
         return luc if luc >= LUC_DOI_TOI_THIEU else None
 
+    def doi_trong(self, img):
+        """Màn đội hình chưa xếp tướng nào (lực chiến đội "0"): gặp khi leo hộ chế độ người nhờ chưa có đội (17/10)."""
+        k = REF_W / img.shape[1]
+        ref = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA) if k != 1 else img
+        return "".join(self.chu_so.doc_ky_tu(m) for m in tach_luc_chien(_cat(ref, VUNG_LUC_DOI), RONG_K)) == "0"
+
     def _moc(self, img):
         """Ảnh đã đưa về chiều rộng máy gốc và độ dời (dx, dy) của bảng so với máy gốc; None nếu không thấy bảng."""
         k = REF_W / img.shape[1]

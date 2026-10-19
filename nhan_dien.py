@@ -103,6 +103,15 @@ MAU = {
     "thuong_thoi_gian": Mau("tab_s7_bang_phan_thuong_afk", (1080, 800, 1410, 880), "giua", 200),
     "ban_do_nut_man_afk": Mau("tab_s7_ban_do_dinh_cao", (10, 2462, 232, 2498), "duoi", nguong=0.7),     # chữ "Màn Chơi Đỉnh Cao" (hình và số ải đổi)
     "ban_do_che_do": Mau("tab_s7_ban_do_the_gioi", (600, 2400, 800, 2550), "duoi"),
+    # Đại Diện Tác Chiến (leo hộ, 17/10): đánh ải của người khác ("Người Thỉnh Cầu") bằng tướng của họ. Màn đội hình
+    # ghi "Đội của <tên>" và chỉ có 1 nút Chiến Đấu ngang (không có Chiến Đấu Tự Động). Thắng thì màn THẮNG có dải
+    # "Đại Diện Tác Chiến" và nút "Tiếp Theo"; bấm nó mở bảng chọn ải kế (Huyền Linh / Màn AFK của người nhờ).
+    "dd_doi_hinh_chien_dau": Mau("tab_s7_dai_dien_doi_hinh", (860, 2350, 1240, 2425), "duoi"),
+    "dd_dai_dien": Mau("tab_s7_dai_dien_thang", (580, 1600, 1015, 1650), "giua", 200),
+    "dd_tiep_theo": Mau("tab_s7_dai_dien_thang", (940, 2355, 1300, 2425), "duoi"),
+    "dd_doi_hinh_dich": Mau("tab_s7_dai_dien_chon_ai", (145, 1585, 430, 1630), "duoi", 120),
+    "dd_chon_chien_dau": Mau("tab_s7_dai_dien_chon_ai", (945, 2010, 1325, 2085), "duoi"),
+    "dd_chon_huyen_linh": Mau("tab_s7_dai_dien_chon_ai", (195, 1985, 695, 2110), "duoi"),
 }
 
 # Tên màn hình: (các mẫu phải thấy hết, ưu tiên). Xét theo thứ tự; màn đầu tiên đủ mẫu là kết quả.
@@ -122,11 +131,14 @@ MAN_HINH = [
     ("thanh_tich", ["tt_sao_chep", "tt_nhan_de_dong"]),
     # Nút "Thử Lại" chỉ có ở màn BẠI; mục "Lời Khuyên Chiến Trận" có lúc không hiện (chỉ còn "Tăng Sức Mạnh").
     ("bai", ["bai_thu_lai"]),
+    ("dai_dien_thang", ["dd_dai_dien", "dd_tiep_theo"]),
     ("thang", ["thang_da_tang", "thang_chien_dau"]),
     # Đồng hồ "NNgiây" ở góc trên phải; cụm nút tốc độ có lúc bị chiêu cuối của tướng che nên không bắt buộc.
     ("dang_danh", ["danh_giay"]),
     ("dang_danh", ["tu_dong_chien_dau"]),
     ("doi_hinh", ["doi_hinh_thanh_tich", "doi_hinh_tu_dong", "doi_hinh_chien_dau"]),
+    ("doi_hinh", ["doi_hinh_thanh_tich", "dd_doi_hinh_chien_dau"]),        # đội hình leo hộ (cờ dai_dien)
+    ("dai_dien_chon", ["dd_doi_hinh_dich"]),
     # Theo tiêu đề "Màn AFK": khi một phần (Chiến Đấu hoặc Thách Đấu Huyền Linh) hết ải, game chỉ còn 1 nút ngang.
     ("man_afk", ["man_afk_tieu_de"]),
     ("ban_do", ["ban_do_che_do", "ban_do_nut_man_afk"]),
@@ -140,6 +152,7 @@ NUT_THEM = {
     "thanh_tich": ["tt_mui_ten_phai", "tt_mui_ten_trai", "tt_o_loc_chu", "tt_nam_dam"],
     "bai": ["nut_quay_lai", "bai_loi_khuyen"],
     "thang": ["nut_quay_lai"],
+    "dai_dien_chon": ["dd_chon_chien_dau", "dd_chon_huyen_linh"],
     "dang_danh": ["danh_toc_do", "danh_tam_dung", "tu_dong_chien_dau", "nut_tu_dong_xu_ly"],
 }
 
@@ -151,6 +164,7 @@ class KetQua:
     diem: dict = field(default_factory=dict)       # tên mẫu -> điểm khớp
     do_sang: float = 0.0
     che_do: str | None = None                       # màn đội hình: "afk" | "huyen_linh" (nếu nhận ra)
+    dai_dien: bool = False                          # màn đội hình leo hộ (Đại Diện Tác Chiến: tướng của người khác)
 
     @property
     def tu_dong(self):
@@ -160,6 +174,7 @@ class KetQua:
     def __str__(self):
         extra = f" ({self.che_do})" if self.che_do else ""
         extra += " [tự động]" if self.tu_dong else ""
+        extra += " [leo hộ]" if self.dai_dien else ""
         nut = ", ".join(f"{k}@{x},{y}" for k, (x, y) in self.nut.items())
         return f"{self.man_hinh}{extra} | sáng {self.do_sang:.0f} | {nut}"
 
@@ -237,6 +252,7 @@ class NhanDien:
                 ket.nut[t] = (round(vitri[t][0] / k), round(vitri[t][1] / k))
         ket.diem = diem
         if ket.man_hinh == "doi_hinh":
+            ket.dai_dien = "doi_hinh_tu_dong" not in ket.nut
             if "tieu_de_huyen" in ket.nut:
                 ket.che_do = "huyen_linh"
             elif "tieu_de_mua_giai" in ket.nut:

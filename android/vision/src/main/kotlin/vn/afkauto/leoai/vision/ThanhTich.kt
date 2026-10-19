@@ -120,6 +120,19 @@ class DocThanhTich(private val nd: NhanDien) {
     }
 
     /** Lực chiến đội của bạn ở màn đội hình, tính bằng triệu ("257,943K" -> 257.943); null nếu không đọc được. */
+    /** Màn đội hình chưa xếp tướng nào (lực chiến đội "0"): gặp khi leo hộ chế độ người nhờ chưa có đội (17/10). */
+    fun doiTrong(img: Mat): Boolean {
+        val ref = veGoc(img)
+        try {
+            val v = ref.cat(VUNG_LUC_DOI.x0.toDouble(), VUNG_LUC_DOI.y0.toDouble(), VUNG_LUC_DOI.x1.toDouble(), VUNG_LUC_DOI.y1.toDouble())
+            val s = tachLucChien(v, RONG_K).joinToString("") { chuSo.docKyTu(it).toString() }
+            v.release()
+            return s == "0"
+        } finally {
+            if (ref !== img) ref.release()
+        }
+    }
+
     fun lucDoi(img: Mat): Double? {
         val ref = veGoc(img)
         try {

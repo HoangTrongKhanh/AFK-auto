@@ -28,6 +28,11 @@ class Prefs(context: Context) {
         get() = p.getString("che_do", "ca_hai") ?: "ca_hai"
         set(v) = p.edit().putString("che_do", v).apply()
 
+    /** Leo hộ người khác (Đại Diện Tác Chiến): dùng tướng của người nhờ, thắng thì bấm Tiếp Theo. */
+    var leoHo: Boolean
+        get() = p.getBoolean("leo_ho", false)
+        set(v) = p.edit().putBoolean("leo_ho", v).apply()
+
     /** Số trận mỗi đội (đội có sẵn lúc bắt đầu, đội vừa chép) trước khi chép đội khác. Mặc định 1: đo 13/10, đội chép
      *  thắng 42% ở trận đầu nhưng chỉ 6-7% ở trận 2-3. */
     var thuLai: Int

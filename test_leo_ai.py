@@ -10,7 +10,7 @@ from unittest import mock
 
 import cv2
 
-from leo_ai import THIEU_NUT_TOI_DA, CheDo, LeoAi
+from leo_ai import THIEU_NUT_TOI_DA, CheDo, Dung, LeoAi, trieu
 from nhan_dien import SAMPLES
 from thanh_tich import cung_doi
 
@@ -20,7 +20,7 @@ THU_MUC = SAMPLES / "thanh_tich"
 def bot(**kw):
     a = argparse.Namespace(che_do="ca-hai", thu_lai=3, thu_lai_doi_cu=1, so_vong=1, nguong_luc=0, cuc_han="thu",
                            loc=True, tu_dong=False, dung_o_ai=None, gio_toi_da=None, thua_toi_da=None, mot_tran=False,
-                           xem_thanh_tich=False, thu_thap_tuong=False, thieu_khung="thu")
+                           xem_thanh_tich=False, thu_thap_tuong=False, thieu_khung="thu", leo_ho=False)
     for k, v in kw.items():
         setattr(a, k, v)
     return LeoAi(adb=None, a=a)
@@ -179,6 +179,65 @@ class TestMotNut(unittest.TestCase):
         self.assertTrue(b.cd["huyen_linh"].het)
         self.assertEqual(b.hien, "afk")
         self.assertEqual(b.adb.bam, [k.nut["man_afk_chien_dau_ngang"]])
+
+
+class TestLeoHo(unittest.TestCase):
+    """Leo hộ (Đại Diện Tác Chiến, 17/10): bảng chọn ải → đội hình (tướng của người nhờ) → THẮNG → Tiếp Theo."""
+    def setUp(self):
+        self.b = bot(leo_ho=True, nguong_luc=0.95)
+        self.b.adb = AdbGia()
+        cho = mock.patch("leo_ai.time.sleep")
+        cho.start()
+        self.addCleanup(cho.stop)
+        csv = mock.patch("leo_ai.TRAN_CSV", SAMPLES.parent / "debug" / "tran_test.csv")
+        csv.start()
+        self.addCleanup(csv.stop)
+
+    def man(self, ten):
+        img = cv2.imread(str(SAMPLES / f"{ten}.png"))
+        return img, self.b.nd.nhan_dien(img)
+
+    def test_chon_huyen_linh_truoc(self):
+        img, k = self.man("tab_s7_dai_dien_chon_ai")
+        self.b.xu_ly_dai_dien_chon(img, k)
+        self.assertEqual(self.b.adb.bam, [k.nut["dd_chon_huyen_linh"]])
+
+    def test_doi_trong_thi_mo_thanh_tich(self):
+        img, k = self.man("tab_s7_dai_dien_doi_hinh_hl_trong")
+        self.b.xu_ly_doi_hinh(img, k)
+        self.assertEqual(self.b.cd["huyen_linh"].ai, 178)
+        self.assertEqual(self.b.adb.bam, [k.nut["doi_hinh_thanh_tich"]])
+
+    def test_danh_bang_nut_chien_dau_ngang_roi_tiep_theo(self):
+        img, k = self.man("tab_s7_dai_dien_doi_hinh")      # Màn AFK ải 45 của người nhờ, đội có sẵn
+        self.b.xu_ly_doi_hinh(img, k)
+        self.assertEqual(self.b.hien, "afk")                # đang mở chế độ nào thì leo chế độ đó
+        self.assertEqual(self.b.adb.bam, [k.nut["dd_doi_hinh_chien_dau"]])
+        self.assertEqual(self.b.tran["che_do"], "ho_afk")
+        img, k = self.man("tab_s7_dai_dien_thang")
+        self.b.xu_ly_dai_dien_thang(img, k)
+        self.b.xu_ly_dai_dien_thang(img, k)                 # màn THẮNG còn hiện: không tính lại
+        self.assertEqual(self.b.ai_ho, 1)
+        self.assertEqual(self.b.cd["afk"].ai, 46)
+        self.assertEqual(self.b.adb.bam[1:], [k.nut["dd_tiep_theo"]] * 2)
+
+    def test_ra_khoi_phien_thi_dung(self):
+        img, k = self.man("tab_s7_man_afk")
+        with self.assertRaises(Dung):
+            for _ in range(THIEU_NUT_TOI_DA):
+                self.b.xu_ly_man_afk(img, k)
+        self.assertEqual(self.b.adb.bam, [])
+
+    def test_khong_leo_ho_ma_gap_man_leo_ho_thi_dung(self):
+        b = bot()
+        img, k = self.man("tab_s7_dai_dien_doi_hinh")
+        with self.assertRaises(Dung):
+            b.xu_ly_doi_hinh(img, k)
+
+    def test_luc_chien_theo_k(self):
+        self.assertEqual(trieu("287M"), 287.0)
+        self.assertAlmostEqual(trieu("66826K"), 66.826)
+        self.assertIsNone(trieu("?5M"))
 
 
 class TestSoTran(unittest.TestCase):

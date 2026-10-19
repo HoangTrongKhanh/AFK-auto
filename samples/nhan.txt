@@ -47,3 +47,13 @@ tab_s7_goi_ban_nhan_de_thoat.png bang_ban_goi
 tab_s7_ban_do_xu_ly_xong_2.png xu_ly_xong
 tab_s7_ban_do_xu_ly_xong_3.png xu_ly_xong
 tab_s7_man_afk_mot_nut.png man_afk
+tab_s7_dai_dien_thang.png dai_dien_thang
+tab_s7_dai_dien_thang_2.png dai_dien_thang
+tab_s7_dai_dien_nguoi_choi.png khong_ro
+tab_s7_dai_dien_chon_ai.png dai_dien_chon
+tab_s7_dai_dien_chon_ai_2.png dai_dien_chon
+tab_s7_dai_dien_doi_hinh.png doi_hinh afk
+tab_s7_dai_dien_doi_hinh_hl_trong.png doi_hinh huyen_linh
+tab_s7_dai_dien_doi_hinh_hl.png doi_hinh huyen_linh
+tab_s7_dai_dien_dang_tai.png khoa   # màn tải "Đang tham gia Đại Diện Tác Chiến" tối như lớp khóa; bot hỏi máy rồi coi là khong_ro
+tab_s7_man_afk_vuot_qua_het.png man_afk    # đã qua hết ải ("Đã Vượt Qua Tất Cả Màn Chơi"), không còn nút nào

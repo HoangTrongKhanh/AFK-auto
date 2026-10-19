@@ -1,6 +1,7 @@
 # AFK Auto: bot leo ải cho Hành Trình AFK
 
-Kế hoạch, nghiệp vụ và bằng chứng nằm trong [YEU_CAU.md](YEU_CAU.md). Bản hiện tại là **bản máy tính** (Python + OpenCV, điều khiển máy qua ADB). Đã xong **bước 1: nhận diện màn hình** và **bước 2: leo ải** (`leo_ai.py`).
+Kế hoạch, nghiệp vụ và bằng chứng nằm trong [YEU_CAU.md](YEU_CAU.md). Người mới vào dự án (sửa code, bảo trì) đọc
+[HUONG_DAN_DEV.md](HUONG_DAN_DEV.md). Bản hiện tại là **bản máy tính** (Python + OpenCV, điều khiển máy qua ADB). Đã xong **bước 1: nhận diện màn hình** và **bước 2: leo ải** (`leo_ai.py`).
 
 ## Chạy bot
 
@@ -12,6 +13,7 @@ Cắm máy (hoặc kết nối Gỡ lỗi không dây), mở game ở bất kỳ
 .venv/bin/python leo_ai.py --xem-thanh-tich       # chỉ đọc 10 đội trong Thành Tích rồi dừng (không đánh)
 .venv/bin/python leo_ai.py --thu-thap-tuong       # leo như thường, mỗi ải mới lưu tướng của cả 10 bản ghi (ô lọc tắt)
 .venv/bin/python leo_ai.py --mot-tran             # đánh 1 trận rồi dừng
+.venv/bin/python leo_ai.py --leo-ho               # leo hộ người khác (Đại Diện Tác Chiến), xem mục dưới
 ```
 
 Bấm Ctrl+C để dừng. Nhật ký chi tiết ghi ở `leo_ai.log`, ảnh lúc có sự cố lưu ở `debug/`. Xem mọi tham số bằng `--help`.
@@ -24,6 +26,27 @@ Bot làm gì:
 - Thắng thì bấm Chiến Đấu ở màn THẮNG để đánh ải kế, giữ nguyên đội vừa thắng.
 - Bot tự gỡ lớp khóa Game Booster, màn nghỉ "Nhấn để tiếp tục", bảng phần thưởng AFK (bấm Nhận), và đi từ bản đồ thế giới về Màn AFK.
 - Bot chỉ bấm vào những nút nhận ra được. Gặp màn lạ quá 60 giây thì lưu ảnh và báo.
+
+## Leo hộ người khác (Đại Diện Tác Chiến)
+
+Khi tài khoản đã qua hết ải ("Đã Vượt Qua Tất Cả Màn Chơi"), bạn có thể leo hộ thành viên bang: họ đăng "Yêu Cầu Đại
+Diện AFK Liên Hoàn" trong Trò chuyện Bang Hội, bạn bấm **Đi** ở tin đó. Game mở bảng chọn ải của người nhờ (thẻ Thách
+Đấu Huyền Linh và thẻ Màn AFK, mỗi thẻ ghi ải của họ). Lúc đó chạy:
+
+```bash
+.venv/bin/python leo_ai.py --leo-ho
+```
+
+- Bot đánh bằng **tướng của người nhờ** (màn đội hình ghi "Đội của <tên>", chỉ có 1 nút Chiến Đấu, không có Chiến Đấu
+  Tự Động). Chọn đội y như leo của bạn: đội trống hoặc thua thì mở Thành Tích, bật lọc (lọc theo tướng của người nhờ),
+  chép thử theo tỉ lệ lực chiến. Không so khung tướng (dữ liệu khung là của bạn).
+- Thắng: màn THẮNG có dải "Đại Diện Tác Chiến" và nút **Tiếp Theo**; bot bấm Tiếp Theo, về bảng chọn ải và đánh ải kế.
+  Thua: bấm Thử Lại (về màn đội hình), không bao giờ bấm ← vì có thể ra khỏi phiên.
+- `--che-do` vẫn dùng được (mặc định Huyền Linh trước, kẹt thì sang Màn AFK). Số ải của người nhờ đọc ở tiêu đề màn
+  đội hình.
+- Bot dừng khi đã thử hết đội ở mọi chế độ, hoặc khi thấy màn của riêng bạn (bản đồ, Màn AFK): phiên đã kết thúc.
+  Đo 17/10: để màn THẮNG leo hộ đứng yên vài phút thì game tự về bản đồ.
+- Chưa có ảnh mẫu màn BẠI của leo hộ (6 trận đầu đều thắng); nếu màn BẠI khác màn thường, bot sẽ lưu ảnh "khong-ro".
 
 ## Cài đặt
 
@@ -60,7 +83,10 @@ trận đầu, bản ghi không thiếu khung thắng 15/20. Đọc lại danh s
 
 App AfkAuto (`./gradlew phatHanh` → `AfkAuto-<phiên bản>.apk`) có cùng các tính năng chọn đội với bản PC: đánh mỗi đội 1
 trận, chép thử theo tỉ lệ lực chiến, vòng 2, so khung tướng, xử lý Thành Tích trống. Lần chạy đầu, app tự đọc danh sách
-tướng ở màn đội hình (lưu trong thư mục riêng của app); đọc lại bằng ⋯ → Khung tướng trên bảng nổi. Module `:vision` là
+tướng ở màn đội hình (lưu trong thư mục riêng của app); đọc lại bằng ⋯ → Khung tướng trên bảng nổi. Từ bản 1.6 có ô
+"Leo hộ người khác" (giống `--leo-ho`): bật ô này **trước**, rồi vào game bấm Đi ở yêu cầu trong Trò chuyện Bang Hội và
+bấm ▶ trên bảng nổi. Đo 17/10: mở game bằng nút "Mở game" của app (hoặc biểu tượng game) khi game đang chạy làm game tải
+lại từ đầu, mất phiên leo hộ đang mở. Module `:vision` là
 bản Kotlin của phần nhận diện; `vision/tao_ket_qua_python.py` ghi kết quả của bản Python để `./gradlew :vision:test`
 kiểm tra bản Kotlin cho kết quả giống hệt (cả thẻ tướng, khung, danh sách tướng).
 

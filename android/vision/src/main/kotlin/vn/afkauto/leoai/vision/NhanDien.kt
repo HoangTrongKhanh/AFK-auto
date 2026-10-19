@@ -114,12 +114,14 @@ class KetQua(
     val diem: Map<String, Double>,
     val doSang: Double,
     val cheDo: String?,                             // màn đội hình: "afk" | "huyen_linh"
+    val daiDien: Boolean = false,                   // màn đội hình leo hộ (Đại Diện Tác Chiến: tướng của người khác)
 ) {
     /** Đang bật Chiến Đấu Tự Động (thấy dải chữ "Tự Động Chiến Đấu..."). */
     val tuDong get() = "tu_dong_chien_dau" in nut
 
     override fun toString(): String {
-        val extra = (cheDo?.let { " ($it)" } ?: "") + (if (tuDong) " [tự động]" else "")
+        val extra = (cheDo?.let { " ($it)" } ?: "") + (if (tuDong) " [tự động]" else "") +
+            (if (daiDien) " [leo hộ]" else "")
         return "$manHinh$extra | sáng ${"%.0f".format(doSang)} | " + nut.entries.joinToString { "${it.key}@${it.value.first},${it.value.second}" }
     }
 }
@@ -208,7 +210,8 @@ class NhanDien(val bo: BoMau) {
             "tieu_de_mua_giai" in nut -> "afk"
             else -> null
         } else null
-        return KetQua(man, nut, khop.mapValues { it.value.diem }, sang, cheDo)
+        val daiDien = man == "doi_hinh" && "doi_hinh_tu_dong" !in nut
+        return KetQua(man, nut, khop.mapValues { it.value.diem }, sang, cheDo, daiDien)
     }
 
     /** Điểm khớp của mọi mẫu (để kiểm thử và chỉnh ngưỡng). */

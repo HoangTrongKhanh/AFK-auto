@@ -134,6 +134,12 @@
                 android:text="Chỉ Thách Đấu Huyền Linh" />
         </RadioGroup>
 
+        <CheckBox
+            android:id="@+id/leoHo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Leo hộ người khác (Đại Diện Tác Chiến): bật ô này trước, rồi trong game bấm Đi ở &quot;Yêu Cầu Đại Diện AFK Liên Hoàn&quot; (Trò chuyện Bang Hội) và bấm ▶ Chạy" />
+
         <LinearLayout style="@style/Row">
 
             <TextView

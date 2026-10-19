@@ -439,6 +439,72 @@
    "neo": "duoi",
    "le": 80,
    "nguong": 0.8
+  },
+  "dd_doi_hinh_chien_dau": {
+   "hop": [
+    860,
+    2350,
+    1240,
+    2425
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "dd_dai_dien": {
+   "hop": [
+    580,
+    1600,
+    1015,
+    1650
+   ],
+   "neo": "giua",
+   "le": 200,
+   "nguong": 0.8
+  },
+  "dd_tiep_theo": {
+   "hop": [
+    940,
+    2355,
+    1300,
+    2425
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "dd_doi_hinh_dich": {
+   "hop": [
+    145,
+    1585,
+    430,
+    1630
+   ],
+   "neo": "duoi",
+   "le": 120,
+   "nguong": 0.8
+  },
+  "dd_chon_chien_dau": {
+   "hop": [
+    945,
+    2010,
+    1325,
+    2085
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "dd_chon_huyen_linh": {
+   "hop": [
+    195,
+    1985,
+    695,
+    2110
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
   }
  },
  "man_hinh": [
@@ -530,6 +596,13 @@
    ]
   },
   {
+   "ten": "dai_dien_thang",
+   "can": [
+    "dd_dai_dien",
+    "dd_tiep_theo"
+   ]
+  },
+  {
    "ten": "thang",
    "can": [
     "thang_da_tang",
@@ -554,6 +627,19 @@
     "doi_hinh_thanh_tich",
     "doi_hinh_tu_dong",
     "doi_hinh_chien_dau"
+   ]
+  },
+  {
+   "ten": "doi_hinh",
+   "can": [
+    "doi_hinh_thanh_tich",
+    "dd_doi_hinh_chien_dau"
+   ]
+  },
+  {
+   "ten": "dai_dien_chon",
+   "can": [
+    "dd_doi_hinh_dich"
    ]
   },
   {
@@ -594,6 +680,10 @@
   ],
   "thang": [
    "nut_quay_lai"
+  ],
+  "dai_dien_chon": [
+   "dd_chon_chien_dau",
+   "dd_chon_huyen_linh"
   ],
   "dang_danh": [
    "danh_toc_do",

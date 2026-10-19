@@ -16,6 +16,7 @@ Ví dụ:
     .venv/bin/python leo_ai.py --mot-tran               # đánh 1 trận rồi dừng (thử)
     .venv/bin/python leo_ai.py --xem-thanh-tich         # chỉ mở Thành Tích, in danh sách đội rồi dừng (không chép)
     .venv/bin/python leo_ai.py --thu-thap-tuong         # leo như thường, mỗi ải mới lưu ảnh tướng của cả 10 bản ghi
+    .venv/bin/python leo_ai.py --leo-ho                 # leo hộ người khác (Đại Diện Tác Chiến): mở sẵn phiên rồi chạy
 """
 import argparse
 import csv
@@ -71,6 +72,8 @@ COT_THU_THAP = ["thoi_gian", "luot", "che_do", "ai", "vi_tri", "luc_chien", "nha
 TEN_CHE_DO = {"afk": "Màn AFK", "huyen_linh": "Thách Đấu Huyền Linh"}
 # Nút vào từng chế độ ở Màn AFK; hết ải một phần thì phần còn lại thành 1 nút ngang (mẫu khác).
 NUT_CHE_DO = {"afk": ["man_afk_chien_dau", "man_afk_chien_dau_ngang"], "huyen_linh": ["man_afk_huyen_linh"]}
+# Leo hộ (Đại Diện Tác Chiến): nút vào từng chế độ ở bảng chọn ải của người nhờ.
+NUT_CHE_DO_HO = {"afk": ["dd_chon_chien_dau"], "huyen_linh": ["dd_chon_huyen_linh"]}
 
 
 class Dung(Exception):
@@ -99,6 +102,7 @@ class CheDo:
     ty_le: list = field(default_factory=list)       # (đội, tỉ lệ lực chiến) mọi đội đã chép ở ải này
     vong: int = 0                           # vòng thử đội trong Thành Tích ở ải này (0 = vòng đầu)
     ds_cu: list | None = None               # danh sách Thành Tích đọc lần trước ở ải này
+    ai: int | None = None                   # leo hộ: ải của người nhờ ở chế độ này (đọc ở tiêu đề màn đội hình)
     da_danh: bool = True                    # đã đánh trận kể từ lần đọc ds_cu (game có thể đã đổi thứ tự đội)
 
 
@@ -157,7 +161,10 @@ class LeoAi:
         # So khung tướng của bản ghi với khung tướng của bạn (doc_tuong_cua_toi.py): bản ghi có tướng mà bản ghi có khung
         # còn của bạn không khung thì đội chép về yếu hơn hẳn (đo 13/10: đội có Saida thua 9/9 trận đầu).
         self.so_khung = None
-        if a.thieu_khung != "thu":
+        self.ngoai_phien = 0                    # leo hộ: số lần liền gặp màn của riêng bạn (đã ra khỏi phiên leo hộ)
+        self.ai_ho = 0                          # leo hộ: số ải đã qua cho người nhờ
+        # Leo hộ dùng tướng của người nhờ: khung tướng đọc từ tài khoản của bạn không dùng được.
+        if a.thieu_khung != "thu" and not a.leo_ho:
             try:
                 from doc_tuong_cua_toi import KET_QUA, SoKhung
                 if KET_QUA.exists():
@@ -197,6 +204,10 @@ class LeoAi:
     def thong_ke(self):
         phut = (time.monotonic() - self.bat_dau) / 60
         tu_dong = f", {self.tk['tu_dong']} ải nhờ Tự Động Xử Lý" if self.tk["tu_dong"] else ""
+        if self.a.leo_ho:
+            ai = ", ".join(f"{TEN_CHE_DO[c.ten]} {c.ai or '?'}" for c in self.cd.values())
+            return (f"leo hộ {self.ai_ho} ải, {self.tk['tran']} trận, thắng {self.tk['thang']}, thua {self.tk['thua']}, "
+                    f"chép đội {self.tk['chep']} lần, ải người nhờ: {ai}, {phut:.0f} phút")
         return (f"{self.tk['tran']} trận, thắng {self.tk['thang']}, thua {self.tk['thua']}, chép đội {self.tk['chep']} lần{tu_dong}, "
                 f"ải {self.tien_trinh or '?'}, {phut:.0f} phút")
 
@@ -216,15 +227,15 @@ class LeoAi:
     # ---------------------------------------------------------------- vòng chạy
 
     def chay(self):
-        log.info("Bắt đầu leo %s. Mỗi đội thử tối đa %d trận, rồi chép đội khác từ Thành Tích.",
-                 " + ".join(TEN_CHE_DO[c] for c in self.cd), self.a.thu_lai)
+        log.info("Bắt đầu %s %s. Mỗi đội thử tối đa %d trận, rồi chép đội khác từ Thành Tích.",
+                 "leo hộ" if self.a.leo_ho else "leo", " + ".join(TEN_CHE_DO[c] for c in self.cd), self.a.thu_lai)
         while True:
             self.kiem_tra_dung()
             img, k = self.chup()
             if k.man_hinh != "khong_ro":
                 self.khong_ro_tu = None
                 self.da_bao_khong_ro = False
-            if k.man_hinh not in ("thang", "bai"):
+            if k.man_hinh not in ("thang", "bai", "dai_dien_thang"):
                 self.da_tinh = False
             if k.man_hinh != "tu_dong_hoan_tat":
                 self.da_tinh_chuoi = False
@@ -337,11 +348,27 @@ class LeoAi:
             self.tran_tu = time.monotonic()     # chuỗi dài bao lâu cũng không phải trận bị treo
         time.sleep(CHO_XU_LY)
 
+    def ngoai_phien_leo_ho(self, img, ten):
+        """Leo hộ mà gặp màn của riêng bạn (bản đồ, Màn AFK, đội hình của bạn): phiên leo hộ đã kết thúc (17/10: để màn
+        THẮNG vài phút thì game tự về bản đồ) hoặc chưa mở. Gặp vài lần liền mới dừng, phòng lúc đang chuyển cảnh."""
+        self.ngoai_phien += 1
+        if self.ngoai_phien >= THIEU_NUT_TOI_DA:
+            self.luu_anh(img, "ngoai-phien-leo-ho")
+            raise Dung(f"Đang ở {ten} của bạn, không phải phiên leo hộ (phiên đã kết thúc hoặc chưa mở). Mở yêu cầu "
+                       f"\"Yêu Cầu Đại Diện AFK Liên Hoàn\" (nút Đi trong Trò chuyện Bang Hội) rồi chạy lại.")
+        time.sleep(CHO_KHONG_RO)
+
     def xu_ly_ban_do(self, img, k):
+        if self.a.leo_ho:
+            self.ngoai_phien_leo_ho(img, "bản đồ thế giới")
+            return
         log.info("Đang ở bản đồ thế giới - mở Màn AFK.")
         self.bam(k, "ban_do_nut_man_afk", cho=3.0)
 
     def xu_ly_man_afk(self, img, k):
+        if self.a.leo_ho:
+            self.ngoai_phien_leo_ho(img, "Màn AFK")
+            return
         self.cap_nhat_tien_trinh(self.so.ai_man_afk(img))
         # Mỗi giai đoạn, phần Chiến Đấu và phần Thách Đấu Huyền Linh có số ải giới hạn; hết ải phần nào thì Màn AFK chỉ
         # còn 1 nút ngang. Thiếu nút vài lần liền (không phải do đang chuyển cảnh) mới tính là hết.
@@ -363,28 +390,79 @@ class LeoAi:
                 if c.thieu_nut >= THIEU_NUT_TOI_DA:
                     c.het = True
                     log.info("Màn AFK không còn nút %s - phần này đã hết ải ở giai đoạn hiện tại.", TEN_CHE_DO[c.ten])
-        cd = self.cd[self.hien]
-        if cd.ket or cd.het:
-            con = [c for c in self.cd.values() if not c.ket and not c.het]
-            if not con:
-                ly_do = "; ".join(f"{TEN_CHE_DO[c.ten]}: {'đã hết ải' if c.het else 'đã thử hết các đội trong Thành Tích'}"
-                                  for c in self.cd.values())
-                raise Dung(f"Không leo tiếp được ở ải {self.tien_trinh or '?'} ({ly_do}).")
-            self.hien = con[0].ten
-            log.info("Chuyển sang %s.", TEN_CHE_DO[self.hien])
+        self.doi_che_do_neu_can()
         nut = nut_che_do(k, self.hien)
         if nut is None:
             time.sleep(CHO_KHONG_RO)                # chờ xem nút có thật sự mất không
             return
         self.bam(k, nut, cho=2.5)
 
+    def doi_che_do_neu_can(self):
+        """Chế độ đang leo đã kẹt hoặc hết ải: chuyển sang chế độ còn leo được, hết cả thì dừng."""
+        cd = self.cd[self.hien]
+        if cd.ket or cd.het:
+            con = [c for c in self.cd.values() if not c.ket and not c.het]
+            if not con:
+                ly_do = "; ".join(f"{TEN_CHE_DO[c.ten]}"
+                                  + (f" ải {c.ai}" if self.a.leo_ho and c.ai else "")
+                                  + f": {'đã hết ải' if c.het else 'đã thử hết các đội trong Thành Tích'}"
+                                  for c in self.cd.values())
+                o = "" if self.a.leo_ho else f" ở ải {self.tien_trinh or '?'}"
+                raise Dung(f"Không {'leo hộ' if self.a.leo_ho else 'leo'} tiếp được{o} ({ly_do}).")
+            self.hien = con[0].ten
+            log.info("Chuyển sang %s.", TEN_CHE_DO[self.hien])
+
+    def xu_ly_dai_dien_chon(self, img, k):
+        """Leo hộ: bảng chọn ải của người nhờ (thẻ Huyền Linh và thẻ Màn AFK, mỗi thẻ ghi ải và đội hình địch). Hiện khi
+        bấm Đi ở yêu cầu trong Trò chuyện Bang Hội, và sau mỗi lần bấm Tiếp Theo ở màn THẮNG."""
+        if not self.a.leo_ho:
+            raise Dung("Đang ở bảng chọn ải leo hộ (Đại Diện Tác Chiến): chạy lại với --leo-ho để leo hộ.")
+        self.ngoai_phien = 0
+        co_nut = [c for c in NUT_CHE_DO_HO if nut_che_do(k, c, NUT_CHE_DO_HO)]
+        for c in self.cd.values():
+            if c.ten in co_nut:
+                c.thieu_nut = 0
+            elif not c.het:
+                c.thieu_nut += 1
+                if c.thieu_nut >= THIEU_NUT_TOI_DA:
+                    c.het = True
+                    self.luu_anh(img, "leo-ho-thieu-nut")
+                    log.info("Bảng chọn ải không còn nút %s - coi như người nhờ đã hết ải phần này.", TEN_CHE_DO[c.ten])
+        self.doi_che_do_neu_can()
+        nut = nut_che_do(k, self.hien, NUT_CHE_DO_HO)
+        if nut is None:
+            time.sleep(CHO_KHONG_RO)
+            return
+        self.bam(k, nut, cho=3.0)               # màn tải "Đang tham gia Đại Diện Tác Chiến" rồi tới màn đội hình
+
     def xu_ly_doi_hinh(self, img, k):
         cd = self.cd[self.hien]
+        if k.dai_dien != self.a.leo_ho:
+            if self.a.leo_ho:
+                self.ngoai_phien_leo_ho(img, "màn đội hình")
+                return
+            raise Dung("Đang ở màn đội hình leo hộ (Đại Diện Tác Chiến): chạy lại với --leo-ho để leo hộ.")
+        if self.a.leo_ho:
+            self.ngoai_phien = 0
+            if k.che_do and k.che_do != self.hien:
+                # Nút ← của màn đội hình leo hộ chưa thử (có thể ra hẳn khỏi phiên): leo luôn chế độ đang mở.
+                log.info("Đang ở màn đội hình leo hộ %s - leo chế độ này.", TEN_CHE_DO[k.che_do])
+                self.hien = k.che_do
+                cd = self.cd[self.hien]
+            ai = self.so.ai_doi_hinh(img)
+            if ai is not None and ai != cd.ai:
+                if cd.ai is not None:
+                    log.info("Leo hộ %s: ải %s → %s.", TEN_CHE_DO[self.hien], cd.ai, ai)
+                cd.ai = ai
+            self.tien_trinh = cd.ai
         if k.che_do and k.che_do != self.hien:
             log.info("Đang ở màn đội hình %s, cần %s - quay lại.", TEN_CHE_DO[k.che_do], TEN_CHE_DO[self.hien])
             self.bam(k, "nut_quay_lai", cho=2.5)
             return
         if cd.ket:
+            if self.a.leo_ho:
+                self.doi_che_do_neu_can()           # chưa rõ nút ← đi đâu: hết đội ở chế độ này thì dừng
+                raise Dung(f"Leo hộ {TEN_CHE_DO[cd.ten]} ải {cd.ai or '?'}: đã thử hết các đội trong Thành Tích.")
             self.bam(k, "nut_quay_lai", cho=2.5)    # về Màn AFK để đổi chế độ hoặc dừng
             return
         if self.a.thu_thap_tuong and cd.can_thu_thap and self.tien_trinh is not None:
@@ -392,11 +470,15 @@ class LeoAi:
             self.dang_thu_thap = True
             self.bam(k, "doi_hinh_thanh_tich", cho=3.0)
             return
+        if cd.doi is None and not cd.can_doi and self.tt.doi_trong(img):
+            log.info("Đội trống (chưa có tướng nào) - chép đội từ Thành Tích.")
+            cd.can_doi = True
         if cd.can_doi or self.a.xem_thanh_tich:
             self.luc_truoc = self.tt.luc_doi(img)
             self.bam(k, "doi_hinh_thanh_tich", cho=3.0)
             return
-        nut = "doi_hinh_tu_dong" if self.a.tu_dong else "doi_hinh_chien_dau"
+        nut = ("dd_doi_hinh_chien_dau" if k.dai_dien else "doi_hinh_tu_dong" if self.a.tu_dong
+               else "doi_hinh_chien_dau")
         luc = self.doc_luc_doi(img)
         ban_ghi = trieu(cd.doi.luc_chien) if cd.doi else None
         ty_le = luc / ban_ghi if luc and ban_ghi else None
@@ -418,8 +500,9 @@ class LeoAi:
                 return
             cd.danh_ngay = False
         # Số trong ô đỏ của đường ải (và số sau trong "A → B" ở màn THẮNG) là ải đang phải đánh.
-        log.info("Đánh %s ải %s với %s%s.", TEN_CHE_DO[self.hien], self.tien_trinh or "?", mo_ta(cd.doi), so_sanh)
-        self.tran = dict(che_do=self.hien, ai=self.tien_trinh or "", vi_tri=cd.vi_tri or "",
+        log.info("%s %s ải %s với %s%s.", "Leo hộ" if self.a.leo_ho else "Đánh", TEN_CHE_DO[self.hien],
+                 self.tien_trinh or "?", mo_ta(cd.doi), so_sanh)
+        self.tran = dict(che_do=("ho_" if self.a.leo_ho else "") + self.hien, ai=self.tien_trinh or "", vi_tri=cd.vi_tri or "",
                          loai="có sẵn" if cd.doi is None else "mang sang" if cd.mang_sang else "chép",
                          doi=mo_ta(cd.doi), luc_ban_ghi=ban_ghi or "", luc_doi=f"{luc:.3f}" if luc else "",
                          ty_le=f"{ty_le:.3f}" if ty_le else "", tran_thu=cd.thua + 1,
@@ -517,6 +600,32 @@ class LeoAi:
                 raise Dung("Đã đánh xong 1 trận (--mot-tran).")
         self.bam(k, "thang_chien_dau", cho=2.5)     # đánh ải kế
 
+    def xu_ly_dai_dien_thang(self, img, k):
+        """Leo hộ thắng: màn THẮNG có dải "Đại Diện Tác Chiến" và nút Tiếp Theo (mở bảng chọn ải kế), không có tiến
+        trình. Ải mới đọc ở tiêu đề màn đội hình kế tiếp."""
+        if not self.a.leo_ho:
+            raise Dung("Đang ở màn THẮNG của leo hộ (Đại Diện Tác Chiến): chạy lại với --leo-ho để leo hộ.")
+        self.ngoai_phien = 0
+        if not self.da_tinh and self.tran_che_do is not None:
+            self.da_tinh = True
+            thoi_gian = self.ket_thuc_tran("thang")
+            self.tk["thang"] += 1
+            self.thua_lien_tiep = 0
+            self.ai_ho += 1
+            cd = self.cd[self.hien]
+            log.info("THẮNG%s! Leo hộ %s ải %s. [%s]", thoi_gian, TEN_CHE_DO[self.hien], cd.ai or "?", self.thong_ke())
+            self.sang_ai_moi(cd, None)
+            if cd.ai is not None:
+                cd.ai += 1                          # đọc lại ở màn đội hình kế
+            if self.a.mot_tran:
+                raise Dung("Đã đánh xong 1 trận (--mot-tran).")
+        elif not self.da_tinh:
+            self.da_tinh = True
+            log.info("Màn THẮNG leo hộ của trận không do bot bắt đầu - không tính, bấm Tiếp Theo.")
+            self.tran_tu = None
+        # Không bao giờ bấm ←: có thể ra khỏi phiên leo hộ.
+        self.bam(k, "dd_tiep_theo", cho=3.0)
+
     def sang_ai_moi(self, cd: CheDo, ai):
         """Chế độ cd vừa thắng sang ải mới."""
         # Không tính đội đang dùng là đã thử ở ải mới: bản ghi của cùng người chơi ở ải mới có thể xếp vị trí khác
@@ -536,7 +645,16 @@ class LeoAi:
         self.cap_nhat_tien_trinh(ai)
 
     def xu_ly_bai(self, img, k):
-        if self.ket_qua_cu("BẠI"):
+        if self.a.leo_ho:
+            self.ngoai_phien = 0
+            if self.tran_che_do is None:
+                if not self.da_tinh:
+                    self.da_tinh = True
+                    log.info("Màn BẠI của trận không do bot bắt đầu - không tính, bấm Thử Lại.")
+                    self.tran_tu = None
+                self.bam(k, "bai_thu_lai", cho=2.5)
+                return
+        elif self.ket_qua_cu("BẠI"):
             self.bam(k, "nut_quay_lai", cho=2.5)
             return
         cd = self.cd[self.hien]
@@ -555,9 +673,10 @@ class LeoAi:
                 raise Dung(f"Thua {self.thua_lien_tiep} trận liên tiếp (giới hạn {self.a.thua_toi_da}).")
             if cd.thua >= self.so_tran_toi_da(cd):
                 cd.can_doi = True
-        if cd.can_doi:
+        if cd.can_doi and not self.a.leo_ho:
             self.bam(k, "nut_quay_lai", cho=2.5)    # về Màn AFK, vào lại màn đội hình rồi mở Thành Tích
         else:
+            # Leo hộ: Thử Lại về màn đội hình của ải đó (ở đó mở Thành Tích nếu cần đổi đội); nút ← có thể ra khỏi phiên.
             self.bam(k, "bai_thu_lai", cho=2.5)
 
     def xu_ly_khong_ro(self, img, k):
@@ -836,14 +955,16 @@ class LeoAi:
         return tot
 
 
-def nut_che_do(k: KetQua, che_do):
-    """Tên mẫu nút vào chế độ đang thấy ở Màn AFK, None nếu không có."""
-    return next((n for n in NUT_CHE_DO[che_do] if n in k.nut), None)
+def nut_che_do(k: KetQua, che_do, bang=NUT_CHE_DO):
+    """Tên mẫu nút vào chế độ đang thấy ở Màn AFK (hoặc bảng chọn ải leo hộ với bang=NUT_CHE_DO_HO), None nếu không có."""
+    return next((n for n in bang[che_do] if n in k.nut), None)
 
 
 def trieu(luc_chien):
-    """ "287M" -> 287.0 (triệu)."""
-    return float(luc_chien[:-1]) if luc_chien and luc_chien[-1] == "M" else None
+    """ "287M" -> 287.0 (triệu). Bản ghi yếu ghi theo K (leo hộ tài khoản nhỏ, 17/10: "66826K") -> 66.826."""
+    if not luc_chien or luc_chien[-1] not in "MK" or not luc_chien[:-1].isdigit():
+        return None
+    return float(luc_chien[:-1]) / (1000 if luc_chien[-1] == "K" else 1)
 
 
 def main():
@@ -880,10 +1001,16 @@ def main():
     ap.add_argument("--thu-thap-tuong", action="store_true",
                     help="mỗi ải mới của mỗi chế độ: tắt lọc, lưu ảnh tướng của cả 10 bản ghi vào thu_thap_tuong/ "
                          "(để thống kê bằng thong_ke_tuong.py)")
+    ap.add_argument("--leo-ho", action="store_true",
+                    help="leo hộ người khác (Đại Diện Tác Chiến): bấm Đi ở \"Yêu Cầu Đại Diện AFK Liên Hoàn\" trong "
+                         "Trò chuyện Bang Hội rồi chạy; bot dùng tướng của người nhờ, chép đội từ Thành Tích như thường, "
+                         "thắng thì bấm Tiếp Theo, dừng khi hết đội ở mọi chế độ hoặc phiên kết thúc")
     ap.add_argument("--serial", help="serial thiết bị (adb devices)")
     ap.add_argument("--adb", default=DEFAULT_ADB, help="đường dẫn adb")
     ap.add_argument("--debug", action="store_true", help="in chi tiết từng bước")
     a = ap.parse_args()
+    if a.leo_ho and a.tu_dong:
+        ap.error("--tu-dong không dùng được khi --leo-ho (màn đội hình leo hộ không có Chiến Đấu Tự Động)")
 
     # Màn hình: thông tin chính (chi tiết khi --debug). File log: luôn ghi chi tiết, xoay vòng 3 x 2MB.
     console = logging.StreamHandler(sys.stdout)

@@ -19,6 +19,15 @@ AI_MAN_AFK = {
     "tab_s7_man_afk_tu_dong_xu_ly.png": 427,
 }
 
+# Số ải ở tiêu đề màn đội hình (cả màn đội hình leo hộ)
+AI_DOI_HINH = {
+    "tab_s7_doi_hinh_man_afk.png": 238,
+    "tab_s7_doi_hinh_huyen_linh.png": 515,
+    "tab_s7_doi_hinh_acc2.png": 108,
+    "tab_s7_dai_dien_doi_hinh.png": 45,
+    "tab_s7_dai_dien_doi_hinh_hl.png": 178,
+}
+
 
 class TestSoAi(unittest.TestCase):
     @classmethod
@@ -40,6 +49,14 @@ class TestSoAi(unittest.TestCase):
         self.assertEqual(self.d.tien_trinh_tu_dong(self.anh("tab_s7_tu_dong_hoan_tat.png")), (217, 245))
         self.assertEqual(self.d.tien_trinh_tu_dong(self.anh("tab_s7_xu_ly_hoan_tat.png")), (420, 445))
         self.assertIsNone(self.d.tien_trinh_tu_dong(self.anh("tab_s7_ket_qua_thang.png")))
+
+    def test_ai_doi_hinh(self):
+        for f, ai in AI_DOI_HINH.items():
+            with self.subTest(anh=f):
+                self.assertEqual(self.d.ai_doi_hinh(self.anh(f)), ai)
+                nho = cv2.resize(self.anh(f), (1080, 1728), interpolation=cv2.INTER_AREA)
+                self.assertEqual(self.d.ai_doi_hinh(nho), ai)
+        self.assertIsNone(self.d.ai_doi_hinh(self.anh("tab_s7_man_afk.png")))
 
     def test_man_khac_tra_ve_none(self):
         for f in ("tab_s7_doi_hinh_man_afk.png", "tab_s7_ket_qua_bai_thu_lai.png", "tab_s7_man_afk_bi_game_booster_khoa.png"):

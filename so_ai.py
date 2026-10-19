@@ -32,6 +32,11 @@ SO_SAU = (910, 1715, 1035, 1790)                 # "752" (màu xanh lá)
 MOC_TU_DONG = (800, 645)
 MOC_XU_LY = (470, 645)                            # bảng "Đã Hoàn Thành Tự Động Xử Lý" (mốc là chữ "Đã Hoàn Thành")
 SO_TRUOC_TD = (690, 1135, 800, 1210)
+# Màn đội hình: số ải ở cuối dòng 2 của tiêu đề ("Màn Chơi Đỉnh Cao Mùa Giải / 45", "... Huyền / Linh Sinh Vật 178"), dời
+# theo mẫu tiêu đề. Bỏ nút "i" bên phải. Chữ màu kem; các chữ cách nhau dưới KHE_CHU px, giữa các từ rộng hơn.
+MOC_TIEU_DE = 70                                  # y của mẫu tieu_de_mua_giai / tieu_de_huyen ở máy gốc
+DONG_2_TIEU_DE = (480, 80, 1085, 130)
+KHE_CHU = 12
 SO_SAU_TD = (910, 1135, 1035, 1210)
 
 
@@ -111,6 +116,27 @@ class DocSoAi:
         o = dai[y:y + h, x:x + w]
         return self.chu_so.doc_so(hsv_mask(o, (0, 0, 215), (180, 70, 255)))
 
+    def ai_doi_hinh(self, img):
+        """Số ải ở tiêu đề màn đội hình (Màn AFK hoặc Huyền Linh, cả khi leo hộ), None nếu không đọc được."""
+        r = self._ref(img, "tieu_de_mua_giai", (0, MOC_TIEU_DE)) or self._ref(img, "tieu_de_huyen", (0, MOC_TIEU_DE))
+        if r is None:
+            return None
+        ref, _, dy = r
+        x0, y0, x1, y1 = DONG_2_TIEU_DE
+        dong = cv2.cvtColor(cat(ref, (x0, y0 + dy, x1, y1 + dy)), cv2.COLOR_BGR2GRAY) > 190
+        _, _, st, _ = cv2.connectedComponentsWithStats(dong.astype(np.uint8), connectivity=8)
+        hops = sorted((s for s in st[1:] if s[4] >= 15 and s[3] >= 15), key=lambda s: s[0])
+        if not hops:
+            return None
+        tu = [hops[-1]]                                 # từ cuối cùng của dòng: các chữ sát nhau tính từ phải sang
+        for s in reversed(hops[:-1]):
+            if tu[0][0] - (s[0] + s[2]) >= KHE_CHU:
+                break
+            tu.insert(0, s)
+        xa, xb = tu[0][0], max(s[0] + s[2] for s in tu)
+        ya, yb = min(s[1] for s in tu), max(s[1] + s[3] for s in tu)
+        return self.chu_so.doc_so(dong[max(0, ya - 3):yb + 4, xa:xb])
+
     def tien_trinh_thang(self, img):
         """(ải trước, ải sau) trong "Tiến Trình Màn Chơi Đỉnh Cao A → B" ở màn THẮNG; None nếu không đọc được."""
         return self._tien_trinh(img, "thang_da_tang", MOC_THANG, SO_TRUOC, SO_SAU)
@@ -140,7 +166,7 @@ def main():
     d = DocSoAi()
     for p in sys.argv[1:]:
         img = cv2.imread(p)
-        print(f"{Path(p).name}: ải {d.ai_man_afk(img)} | thắng {d.tien_trinh_thang(img)}")
+        print(f"{Path(p).name}: ải {d.ai_man_afk(img)} | thắng {d.tien_trinh_thang(img)} | đội hình {d.ai_doi_hinh(img)}")
 
 
 if __name__ == "__main__":

@@ -47,6 +47,7 @@ class PythonParityTest {
             val want = r.getOrElse(6) { "" }.split(";").filter { it.isNotEmpty() }
                 .associate { it.substringBefore(":") to xy(it.substringAfter(":")) }
             assertEquals(want.keys, k.nut.keys, "${r[1]}: các nút")
+            assertEquals(r[7] == "1", k.daiDien, "${r[1]}: leo hộ")
             for ((t, p) in want) {
                 val g = k.nut.getValue(t)
                 assertTrue(abs(p.first - g.first) <= 2 && abs(p.second - g.second) <= 2, "${r[1]}: $t $p != $g")
@@ -102,6 +103,7 @@ class PythonParityTest {
         for (r in rows("luc_doi")) {
             val got = doc.lucDoi(image(r[1]))
             if (r[2] == "-") assertNull(got, "${r[1]}: lực chiến đội") else assertEquals(r[2].toDouble(), assertNotNull(got, r[1]), 1e-6, r[1])
+            assertEquals(r[3] == "1", doc.doiTrong(image(r[1])), "${r[1]}: đội trống")
         }
     }
 
@@ -113,6 +115,7 @@ class PythonParityTest {
             assertEquals(r[2].takeIf { it != "-" }?.toInt(), so.aiManAfk(img), "${r[1]}: ải Màn AFK")
             assertEquals(r[3].takeIf { it != "-" }?.let(::xy), so.tienTrinhThang(img), "${r[1]}: tiến trình thắng")
             assertEquals(r[4].takeIf { it != "-" }?.let(::xy), so.tienTrinhTuDong(img), "${r[1]}: tiến trình tự động")
+            assertEquals(r[5].takeIf { it != "-" }?.toInt(), so.aiDoiHinh(img), "${r[1]}: ải ở tiêu đề đội hình")
         }
     }
 

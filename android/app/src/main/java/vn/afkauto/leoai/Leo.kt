@@ -62,8 +62,19 @@ private val TEN_CHE_DO = mapOf("afk" to "Màn AFK", "huyen_linh" to "Thách Đ�
 private val NUT_CHE_DO = mapOf("afk" to listOf("man_afk_chien_dau", "man_afk_chien_dau_ngang"),
     "huyen_linh" to listOf("man_afk_huyen_linh"))
 
-/** Tên mẫu nút vào chế độ đang thấy ở Màn AFK, null nếu không có. */
-private fun nutCheDo(k: KetQua, cheDo: String) = NUT_CHE_DO.getValue(cheDo).firstOrNull { it in k.nut }
+// Leo hộ (Đại Diện Tác Chiến): nút vào từng chế độ ở bảng chọn ải của người nhờ.
+private val NUT_CHE_DO_HO = mapOf("afk" to listOf("dd_chon_chien_dau"), "huyen_linh" to listOf("dd_chon_huyen_linh"))
+
+/** Tên mẫu nút vào chế độ đang thấy ở Màn AFK (hoặc bảng chọn ải leo hộ với bang = NUT_CHE_DO_HO), null nếu không có. */
+private fun nutCheDo(k: KetQua, cheDo: String, bang: Map<String, List<String>> = NUT_CHE_DO) =
+    bang.getValue(cheDo).firstOrNull { it in k.nut }
+
+/** "287M" -> 287.0 (triệu). Bản ghi yếu ghi theo K (leo hộ tài khoản nhỏ, 17/10: "66826K") -> 66.826. */
+private fun trieu(lucChien: String?): Double? {
+    if (lucChien.isNullOrEmpty() || lucChien.last() !in "MK") return null
+    val so = lucChien.dropLast(1).takeIf { it.isNotEmpty() && it.all(Char::isDigit) }?.toDouble() ?: return null
+    return if (lucChien.last() == 'K') so / 1000 else so
+}
 
 /** Leo ải: mỗi vòng chụp màn hình, nhận ra đang ở màn nào rồi làm đúng một việc ở màn đó. */
 class Leo(private val svc: BotService) {
@@ -89,6 +100,7 @@ class Leo(private val svc: BotService) {
         var vong = 0                                // vòng thử đội trong Thành Tích ở ải này (0 = vòng đầu)
         var dsCu: List<DoiThanhTich>? = null        // danh sách Thành Tích đọc lần trước ở ải này
         var daDanh = true                           // đã đánh trận kể từ lần đọc dsCu (game có thể đã đổi thứ tự)
+        var ai: Int? = null                         // leo hộ: ải của người nhờ ở chế độ này (đọc ở tiêu đề màn đội hình)
     }
 
     private val nd get() = svc.nd
@@ -125,6 +137,9 @@ class Leo(private val svc: BotService) {
     private var daTinhChuoi = false                 // đã tính bảng Chiến Đấu Tự Động Hoàn Tất đang hiện
     private var docLaiChuoi = 0                     // số lần đọc lại bảng kết quả chưa đọc được tiến trình
     private var trongChuoi = false                  // game đang (hoặc vừa) Tự Động Xử Lý, trận thua cuối chuỗi chưa tính
+    private var leoHo = false                       // leo hộ người khác (Đại Diện Tác Chiến), đọc từ cài đặt lúc bắt đầu
+    private var ngoaiPhien = 0                      // leo hộ: số lần liền gặp màn của riêng bạn (đã ra khỏi phiên)
+    private var aiHo = 0                            // leo hộ: số ải đã qua cho người nhờ
 
     private fun now() = svc.uptime()
 
@@ -146,12 +161,14 @@ class Leo(private val svc: BotService) {
 
     private fun moTa(d: DoiThanhTich?) = d?.toString() ?: "đội có sẵn"
 
-    private fun thongKe() = "$tran trận, thắng $thang, thua $thuaTong, chép đội $chep lần" +
-        (if (tuDongAi > 0) ", $tuDongAi ải nhờ Tự Động Xử Lý" else "") + ", ải ${tienTrinh ?: "?"}, " +
-        "${(now() - batDau) / 60_000} phút"
+    private fun thongKe() = (if (leoHo) "leo hộ $aiHo ải, " else "") +
+        "$tran trận, thắng $thang, thua $thuaTong, chép đội $chep lần" +
+        (if (tuDongAi > 0) ", $tuDongAi ải nhờ Tự Động Xử Lý" else "") +
+        (if (leoHo) ", ải người nhờ: " + cd.values.joinToString { "${tenCheDo(it.ten)} ${it.ai ?: "?"}" }
+        else ", ải ${tienTrinh ?: "?"}") + ", ${(now() - batDau) / 60_000} phút"
 
     private fun trangThai(viec: String) =
-        BotStatus.set("Ải ${tienTrinh ?: "?"} · $viec · ${prefs.todayText()}")
+        BotStatus.set((if (leoHo) "Leo hộ · " else "") + "Ải ${tienTrinh ?: "?"} · $viec · ${prefs.todayText()}")
 
     // ---------------------------------------------------------------- vòng chạy
 
@@ -164,7 +181,10 @@ class Leo(private val svc: BotService) {
         }
         cd = thuTu.associateWith { CheDo(it) }
         hien = thuTu.first()
-        tienTrinh = prefs.lastStage.takeIf { it > 0 }
+        leoHo = prefs.leoHo
+        ngoaiPhien = 0
+        aiHo = 0
+        tienTrinh = if (leoHo) null else prefs.lastStage.takeIf { it > 0 }
         tranTu = null
         tranCheDo = null
         daTinh = false
@@ -172,10 +192,11 @@ class Leo(private val svc: BotService) {
         batDau = now()
         tran = 0; thang = 0; thuaTong = 0; chep = 0; tuDongAi = 0
         xuLyTu = null
-        AppLog.i("Bắt đầu leo ${thuTu.joinToString(" + ") { tenCheDo(it) }}. Mỗi đội thử ${prefs.thuLai} trận " +
+        AppLog.i("Bắt đầu ${if (leoHo) "leo hộ" else "leo"} ${thuTu.joinToString(" + ") { tenCheDo(it) }}. Mỗi đội thử ${prefs.thuLai} trận " +
             "(đội mang sang ải mới ${prefs.thuLaiDoiCu} trận), rồi chép đội khác từ Thành Tích.")
         daThuDocTuong = false
-        soKhung = if (prefs.thieuKhung == "thu") null else napSoKhung()
+        // Leo hộ dùng tướng của người nhờ: khung tướng đọc từ tài khoản của bạn không dùng được.
+        soKhung = if (prefs.thieuKhung == "thu" || leoHo) null else napSoKhung()
         if (!dangSac().second) AppLog.i("Máy không cắm sạc: nên cắm sạc khi để bot chạy lâu.")
         try {
             while (true) {
@@ -195,7 +216,7 @@ class Leo(private val svc: BotService) {
                         daBaoKhongRo = false
                     }
                     if (k.manHinh != "khoa") khoaLan = 0
-                    if (k.manHinh != "thang" && k.manHinh != "bai") daTinh = false
+                    if (k.manHinh !in listOf("thang", "bai", "dai_dien_thang")) daTinh = false
                     if (k.manHinh != "tu_dong_hoan_tat") daTinhChuoi = false
                     // Chuỗi dừng mà không qua ải nào: game không hiện bảng kết quả lẫn màn BẠI, về thẳng màn đội hình.
                     if (trongChuoi && (k.manHinh == "doi_hinh" || k.manHinh == "man_afk")) thuaChuoi()
@@ -208,7 +229,12 @@ class Leo(private val svc: BotService) {
                             bam(k, "nhan_de_thoat")
                         }
                         "phan_thuong_afk" -> { AppLog.i("Nhận phần thưởng AFK."); bam(k, "thuong_nhan") }
-                        "ban_do" -> { AppLog.i("Đang ở bản đồ thế giới - mở Màn AFK."); bam(k, "ban_do_nut_man_afk", 3000) }
+                        "ban_do" -> if (leoHo) ngoaiPhienLeoHo(img, "bản đồ thế giới") else {
+                            AppLog.i("Đang ở bản đồ thế giới - mở Màn AFK.")
+                            bam(k, "ban_do_nut_man_afk", 3000)
+                        }
+                        "dai_dien_chon" -> xuLyDaiDienChon(img, k)
+                        "dai_dien_thang" -> xuLyDaiDienThang(k)
                         "man_afk" -> xuLyManAfk(img, k)
                         "doi_hinh" -> xuLyDoiHinh(img, k)
                         "thanh_tich" -> xuLyThanhTich(k)
@@ -312,7 +338,81 @@ class Leo(private val svc: BotService) {
         khoaLan = 0
     }
 
+    /** Leo hộ mà gặp màn của riêng bạn (bản đồ, Màn AFK, đội hình của bạn): phiên leo hộ đã kết thúc (17/10: để màn
+     *  THẮNG vài phút thì game tự về bản đồ) hoặc chưa mở. Gặp vài lần liền mới dừng, phòng lúc đang chuyển cảnh. */
+    private suspend fun ngoaiPhienLeoHo(img: Mat, ten: String) {
+        if (++ngoaiPhien >= THIEU_NUT_TOI_DA) {
+            svc.saveImage(img, "ngoai-phien-leo-ho", force = true)
+            throw StopBot("Đang ở $ten của bạn, không phải phiên leo hộ (phiên đã kết thúc hoặc chưa mở). Bấm Đi ở " +
+                "\"Yêu Cầu Đại Diện AFK Liên Hoàn\" trong Trò chuyện Bang Hội rồi chạy lại.")
+        }
+        delay(CHO_KHONG_RO)
+    }
+
+    /** Chế độ đang leo đã kẹt hoặc hết ải: chuyển sang chế độ còn leo được, hết cả thì dừng. */
+    private fun doiCheDoNeuCan() {
+        val c = cd.getValue(hien)
+        if (!c.ket && !c.het) return
+        val con = cd.values.filter { !it.ket && !it.het }
+        if (con.isEmpty()) {
+            val lyDo = cd.values.joinToString("; ") {
+                tenCheDo(it.ten) + (if (leoHo && it.ai != null) " ải ${it.ai}" else "") + ": " +
+                    if (it.het) "đã hết ải" else "đã thử hết các đội trong Thành Tích"
+            }
+            throw StopBot(if (leoHo) "Không leo hộ tiếp được ($lyDo)." else "Không leo tiếp được ở ải ${tienTrinh ?: "?"} ($lyDo).")
+        }
+        hien = con.first().ten
+        AppLog.i("Chuyển sang ${tenCheDo(hien)}.")
+    }
+
+    /** Leo hộ: bảng chọn ải của người nhờ (thẻ Huyền Linh và thẻ Màn AFK). Hiện khi bấm Đi ở yêu cầu trong Trò chuyện
+     *  Bang Hội, và sau mỗi lần bấm Tiếp Theo ở màn THẮNG. */
+    private suspend fun xuLyDaiDienChon(img: Mat, k: KetQua) {
+        if (!leoHo) throw StopBot("Đang ở bảng chọn ải leo hộ (Đại Diện Tác Chiến): bật \"Leo hộ người khác\" rồi chạy lại.")
+        ngoaiPhien = 0
+        val coNut = NUT_CHE_DO_HO.keys.filter { nutCheDo(k, it, NUT_CHE_DO_HO) != null }
+        for (c in cd.values) {
+            if (c.ten in coNut) c.thieuNut = 0
+            else if (!c.het && ++c.thieuNut >= THIEU_NUT_TOI_DA) {
+                c.het = true
+                svc.saveImage(img, "leo-ho-thieu-nut", force = true)
+                AppLog.i("Bảng chọn ải không còn nút ${tenCheDo(c.ten)} - coi như người nhờ đã hết ải phần này.")
+            }
+        }
+        doiCheDoNeuCan()
+        val nut = nutCheDo(k, hien, NUT_CHE_DO_HO)
+        if (nut == null) {
+            delay(CHO_KHONG_RO)
+            return
+        }
+        trangThai("${tenCheDo(hien)} · vào ải")
+        bam(k, nut, 3000)                       // màn tải "Đang tham gia Đại Diện Tác Chiến" rồi tới màn đội hình
+    }
+
+    /** Leo hộ thắng: màn THẮNG có dải "Đại Diện Tác Chiến" và nút Tiếp Theo (mở bảng chọn ải kế), không có tiến trình. */
+    private suspend fun xuLyDaiDienThang(k: KetQua) {
+        if (!leoHo) throw StopBot("Đang ở màn THẮNG của leo hộ (Đại Diện Tác Chiến): bật \"Leo hộ người khác\" rồi chạy lại.")
+        ngoaiPhien = 0
+        if (!daTinh && tranCheDo != null) {
+            daTinh = true
+            val thoiGian = ketThucTran(true)
+            thang++
+            aiHo++
+            val c = cd.getValue(hien)
+            AppLog.i("THẮNG$thoiGian! Leo hộ ${tenCheDo(hien)} ải ${c.ai ?: "?"}. [${thongKe()}]")
+            sangAiMoi(c, null)
+            c.ai = c.ai?.plus(1)                    // đọc lại ở màn đội hình kế
+            if (cheDoChay == CheDoChay.MOT_TRAN) throw StopBot("Đã đánh xong 1 trận: THẮNG.")
+        } else if (!daTinh) {
+            daTinh = true
+            AppLog.i("Màn THẮNG leo hộ của trận không do bot bắt đầu - không tính, bấm Tiếp Theo.")
+            tranTu = null
+        }
+        bam(k, "dd_tiep_theo", 3000)            // không bao giờ bấm ←: có thể ra khỏi phiên leo hộ
+    }
+
     private suspend fun xuLyManAfk(img: Mat, k: KetQua) {
+        if (leoHo) return ngoaiPhienLeoHo(img, "Màn AFK")
         capNhatTienTrinh(cpu { so.aiManAfk(img) })
         // Mỗi giai đoạn, phần Chiến Đấu và phần Thách Đấu Huyền Linh có số ải giới hạn; hết ải phần nào thì Màn AFK chỉ
         // còn 1 nút ngang. Thiếu nút vài lần liền (không phải do đang chuyển cảnh) mới tính là hết.
@@ -334,15 +434,7 @@ class Leo(private val svc: BotService) {
                 AppLog.i("Màn AFK không còn nút ${tenCheDo(c.ten)} - phần này đã hết ải ở giai đoạn hiện tại.")
             }
         }
-        val c = cd.getValue(hien)
-        if (c.ket || c.het) {
-            val con = cd.values.filter { !it.ket && !it.het }
-            if (con.isEmpty()) throw StopBot("Không leo tiếp được ở ải ${tienTrinh ?: "?"} (" + cd.values.joinToString("; ") {
-                "${tenCheDo(it.ten)}: " + if (it.het) "đã hết ải" else "đã thử hết các đội trong Thành Tích"
-            } + ").")
-            hien = con.first().ten
-            AppLog.i("Chuyển sang ${tenCheDo(hien)}.")
-        }
+        doiCheDoNeuCan()
         val nut = nutCheDo(k, hien)
         if (nut == null) {
             delay(CHO_KHONG_RO)                     // chờ xem nút có thật sự mất không
@@ -352,23 +444,51 @@ class Leo(private val svc: BotService) {
     }
 
     private suspend fun xuLyDoiHinh(img: Mat, k: KetQua) {
-        val c = cd.getValue(hien)
+        var c = cd.getValue(hien)
+        if (k.daiDien != leoHo) {
+            if (leoHo) return ngoaiPhienLeoHo(img, "màn đội hình")
+            throw StopBot("Đang ở màn đội hình leo hộ (Đại Diện Tác Chiến): bật \"Leo hộ người khác\" rồi chạy lại.")
+        }
+        if (leoHo) {
+            ngoaiPhien = 0
+            val mo = k.cheDo
+            if (mo != null && mo != hien && mo in cd) {
+                // Nút ← của màn đội hình leo hộ chưa thử (có thể ra hẳn khỏi phiên): leo luôn chế độ đang mở.
+                AppLog.i("Đang ở màn đội hình leo hộ ${tenCheDo(mo)} - leo chế độ này.")
+                hien = mo
+                c = cd.getValue(hien)
+            }
+            val ai = cpu { so.aiDoiHinh(img) }
+            if (ai != null && ai != c.ai) {
+                if (c.ai != null) AppLog.i("Leo hộ ${tenCheDo(hien)}: ải ${c.ai} → $ai.")
+                c.ai = ai
+            }
+            tienTrinh = c.ai
+        }
         if (k.cheDo != null && k.cheDo != hien) {
             AppLog.i("Đang ở màn đội hình ${tenCheDo(k.cheDo)}, cần ${tenCheDo(hien)} - quay lại.")
             bam(k, "nut_quay_lai", 2500)
             return
         }
         if (c.ket) {
+            if (leoHo) {
+                doiCheDoNeuCan()                    // chưa rõ nút ← đi đâu: hết đội ở chế độ này thì dừng
+                throw StopBot("Leo hộ ${tenCheDo(c.ten)} ải ${c.ai ?: "?"}: đã thử hết các đội trong Thành Tích.")
+            }
             bam(k, "nut_quay_lai", 2500)            // về Màn AFK để đổi chế độ hoặc dừng
             return
         }
         // Chưa đọc khung tướng của bạn: đọc một lần ở màn đội hình (1-2 phút, không đánh) để so khung khi chọn đội.
-        if (cheDoChay == CheDoChay.LEO && prefs.thieuKhung != "thu" && soKhung == null && !daThuDocTuong) {
+        if (cheDoChay == CheDoChay.LEO && prefs.thieuKhung != "thu" && soKhung == null && !daThuDocTuong && !leoHo) {
             daThuDocTuong = true
             AppLog.i("Chưa có khung tướng của bạn - đọc danh sách tướng trước (một lần).")
             docDanhSachTuong()
             soKhung = napSoKhung()
             return
+        }
+        if (c.doi == null && !c.canDoi && cpu { tt.doiTrong(img) }) {
+            AppLog.i("Đội trống (chưa có tướng nào) - chép đội từ Thành Tích.")
+            c.canDoi = true
         }
         if (c.canDoi || cheDoChay == CheDoChay.XEM_THANH_TICH) {
             trangThai("${tenCheDo(hien)} · mở Thành Tích")
@@ -377,7 +497,7 @@ class Leo(private val svc: BotService) {
             return
         }
         val luc = docLucDoi(img)
-        val banGhi = c.doi?.lucChien?.takeIf { it.endsWith("M") }?.dropLast(1)?.toDoubleOrNull()
+        val banGhi = trieu(c.doi?.lucChien)
         val tyLe = if (luc != null && banGhi != null) luc / banGhi else null
         val soSanh = luc?.let { " (đội bạn ${"%.1f".format(it)}M" + (tyLe?.let { t -> " = ${"%.0f".format(t * 100)}% bản ghi)" } ?: ")") } ?: ""
         if (c.moiChep) {
@@ -397,13 +517,13 @@ class Leo(private val svc: BotService) {
             c.danhNgay = false
         }
         // Số trong ô đỏ của đường ải (và số sau trong "A → B" ở màn THẮNG) là ải đang phải đánh.
-        AppLog.i("Đánh ${tenCheDo(hien)} ải ${tienTrinh ?: "?"} với ${moTa(c.doi)}$soSanh.")
+        AppLog.i("${if (leoHo) "Leo hộ" else "Đánh"} ${tenCheDo(hien)} ải ${tienTrinh ?: "?"} với ${moTa(c.doi)}$soSanh.")
         trangThai("${tenCheDo(hien)} · đánh (${moTa(c.doi)})")
-        tranInfo = listOf(hien, (tienTrinh ?: "").toString(),
+        tranInfo = listOf((if (leoHo) "ho_" else "") + hien, (tienTrinh ?: "").toString(),
             if (c.doi == null) "có sẵn" else if (c.mangSang) "mang sang" else "chép", (c.viTri ?: "").toString(),
             moTa(c.doi).replace(",", " "), banGhi?.toString() ?: "", luc?.let { "%.3f".format(java.util.Locale.ROOT, it) } ?: "",
             tyLe?.let { "%.3f".format(java.util.Locale.ROOT, it) } ?: "", (c.thua + 1).toString(), c.doi?.thieuKhung.orEmpty().joinToString(";"))
-        bam(k, if (prefs.tuDong) "doi_hinh_tu_dong" else "doi_hinh_chien_dau", 2000)
+        bam(k, if (k.daiDien) "dd_doi_hinh_chien_dau" else if (prefs.tuDong) "doi_hinh_tu_dong" else "doi_hinh_chien_dau", 2000)
         tranTu = now()
         tranCheDo = hien
         c.daDanh = true
@@ -580,7 +700,18 @@ class Leo(private val svc: BotService) {
     }
 
     private suspend fun xuLyBai(k: KetQua) {
-        if (ketQuaCu("BẠI")) {
+        if (leoHo) {
+            ngoaiPhien = 0
+            if (tranCheDo == null) {
+                if (!daTinh) {
+                    daTinh = true
+                    AppLog.i("Màn BẠI của trận không do bot bắt đầu - không tính, bấm Thử Lại.")
+                    tranTu = null
+                }
+                bam(k, "bai_thu_lai", 2500)
+                return
+            }
+        } else if (ketQuaCu("BẠI")) {
             bam(k, "nut_quay_lai", 2500)
             return
         }
@@ -595,7 +726,8 @@ class Leo(private val svc: BotService) {
             if (cheDoChay == CheDoChay.MOT_TRAN) throw StopBot("Đã đánh xong 1 trận: BẠI.")
             if (c.thua >= soTranToiDa(c)) c.canDoi = true
         }
-        if (c.canDoi) bam(k, "nut_quay_lai", 2500)  // về Màn AFK, vào lại màn đội hình rồi mở Thành Tích
+        // Leo hộ: Thử Lại về màn đội hình của ải đó (ở đó mở Thành Tích nếu cần đổi đội); nút ← có thể ra khỏi phiên.
+        if (c.canDoi && !leoHo) bam(k, "nut_quay_lai", 2500)  // về Màn AFK, vào lại màn đội hình rồi mở Thành Tích
         else bam(k, "bai_thu_lai", 2500)
     }
 

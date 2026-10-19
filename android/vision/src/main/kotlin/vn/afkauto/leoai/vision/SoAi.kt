@@ -24,6 +24,10 @@ private val MOC_TU_DONG = 800 to 645
 private val MOC_XU_LY = 470 to 645                  // bảng "Đã Hoàn Thành Tự Động Xử Lý" (mốc là chữ "Đã Hoàn Thành")
 private val SO_TRUOC_TD = Box(690, 1135, 800, 1210)
 private val SO_SAU_TD = Box(910, 1135, 1035, 1210)
+// Màn đội hình: số ải ở cuối dòng 2 của tiêu đề, dời theo mẫu tiêu đề (y 70 ở máy gốc); bỏ nút "i" bên phải.
+private const val MOC_TIEU_DE = 70
+private val DONG_2_TIEU_DE = Box(480, 80, 1085, 130)
+private const val KHE_CHU = 12
 
 /** Ảnh nhị phân nhỏ (true = nét), lưu theo hàng. */
 class Bin(val w: Int, val h: Int, val px: BooleanArray) {
@@ -175,6 +179,31 @@ class DocSoAi(private val nd: NhanDien) {
         }
         dai.release()
         kq
+    }
+
+    /** Số ải ở tiêu đề màn đội hình (Màn AFK hoặc Huyền Linh, cả khi leo hộ), null nếu không đọc được. */
+    fun aiDoiHinh(img: Mat): Int? {
+        fun doc(ref: Mat, dy: Double): Int? {
+            val b = DONG_2_TIEU_DE
+            val m = ref.cat(b.x0.toDouble(), b.y0 + dy, b.x1.toDouble(), b.y1 + dy)
+            val dong = Bin.xam(m) { it > 190 }
+            m.release()
+            val hops = thanhPhan(dong).filter { it[4] >= 15 && it[3] >= 15 }.sortedBy { it[0] }
+            if (hops.isEmpty()) return null
+            // Từ cuối cùng của dòng: các chữ sát nhau tính từ phải sang.
+            val tu = ArrayDeque<IntArray>().apply { add(hops.last()) }
+            for (h in hops.dropLast(1).asReversed()) {
+                if (tu.first()[0] - (h[0] + h[2]) >= KHE_CHU) break
+                tu.addFirst(h)
+            }
+            val xa = tu.first()[0]
+            val xb = tu.maxOf { it[0] + it[2] }
+            val ya = tu.minOf { it[1] }
+            val yb = tu.maxOf { it[1] + it[3] }
+            return chuSo.docSo(dong.crop(xa, maxOf(0, ya - 3), xb, minOf(dong.h, yb + 4)))
+        }
+        return voiMoc(img, "tieu_de_mua_giai", 0 to MOC_TIEU_DE) { ref, _, dy -> doc(ref, dy) }
+            ?: voiMoc(img, "tieu_de_huyen", 0 to MOC_TIEU_DE) { ref, _, dy -> doc(ref, dy) }
     }
 
     /** (ải trước, ải sau) trong "Tiến Trình Màn Chơi Đỉnh Cao A → B" ở màn THẮNG; null nếu không đọc được. */
