@@ -21,6 +21,8 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.view.WindowInsets
+import android.view.WindowManager
+import android.content.res.ColorStateList
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.RadioGroup
@@ -28,8 +30,8 @@ import android.widget.TextView
 import android.widget.Toast
 import kotlin.reflect.KMutableProperty0
 
-private const val DONE_COLOR = 0xFF2E7D32.toInt()
-private const val TODO_COLOR = 0xFF212121.toInt()
+private const val DONE_COLOR = 0xFF6CD7AC.toInt()
+private const val TODO_COLOR = 0xFFE5EDF3.toInt()
 
 class MainActivity : Activity() {
     private lateinit var prefs: Prefs
@@ -42,11 +44,52 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         prefs = Prefs(this)
+        val pages = listOf(R.id.pageTask, R.id.pageHeroes, R.id.pageLogs, R.id.pageSettings)
+        val tabs = listOf(R.id.tabTask, R.id.tabHeroes, R.id.tabLogs, R.id.tabSettings)
+        fun selectPage(index: Int) {
+            pages.forEachIndexed { i, id -> findViewById<View>(id).visibility = if (i == index) View.VISIBLE else View.GONE }
+            tabs.forEachIndexed { i, id ->
+                findViewById<TextView>(id).apply {
+                    isSelected = i == index
+                    setTextColor(if (isSelected) getColor(R.color.ui_accent) else getColor(R.color.ui_muted))
+                    backgroundTintList = ColorStateList.valueOf(if (isSelected) getColor(R.color.ui_selected) else android.graphics.Color.TRANSPARENT)
+                }
+            }
+            findViewById<android.widget.ScrollView>(R.id.scroll).scrollTo(0, 0)
+        }
+        tabs.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { selectPage(i) } }
+        selectPage(0)
+        fun collapse(button: Int, panel: Int, title: String) {
+            findViewById<TextView>(button).setOnClickListener {
+                val v = findViewById<View>(panel)
+                v.visibility = if (v.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                findViewById<TextView>(button).text = title + if (v.visibility == View.VISIBLE) " ▴" else " ▾"
+            }
+        }
+        collapse(R.id.setupToggle, R.id.setupPanel, "Thiết lập ban đầu")
+        collapse(R.id.teamToggle, R.id.teamSettings, "Chọn đội")
+        collapse(R.id.limitToggle, R.id.limitSettings, "Giới hạn chạy")
+        findViewById<View>(R.id.runBot).setOnClickListener {
+            BotService.instance?.let { if (it.isJobRunning) it.stopJob() else it.startBot() }
+            showStatus()
+        }
+        findViewById<View>(R.id.readHeroes).setOnClickListener {
+            val svc = BotService.instance
+            when {
+                svc == null -> Toast.makeText(this, "Hãy bật Trợ năng trong Thiết lập ban đầu trước", Toast.LENGTH_LONG).show()
+                svc.isJobRunning -> Toast.makeText(this, "Hãy dừng tác vụ hiện tại trước", Toast.LENGTH_SHORT).show()
+                else -> {
+                    Toast.makeText(this, "Đang trở lại game để đọc khung tướng", Toast.LENGTH_SHORT).show()
+                    moveTaskToBack(true)
+                    svc.startReadHeroesFromApp()
+                }
+            }
+        }
         botStatus = findViewById(R.id.botStatus)
         logView = findViewById(R.id.log)
-        findViewById<View>(R.id.scroll).setOnApplyWindowInsetsListener { v, insets ->
+        findViewById<View>(android.R.id.content).setOnApplyWindowInsetsListener { v, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars())
-            v.setPadding(bars.left, 0, bars.right, bars.bottom)
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
@@ -111,7 +154,7 @@ class MainActivity : Activity() {
         toggle.setOnClickListener {
             val show = advanced.visibility != View.VISIBLE
             advanced.visibility = if (show) View.VISIBLE else View.GONE
-            toggle.text = if (show) "Nâng cao ▴" else "Nâng cao ▾"
+            toggle.text = if (show) "Chẩn đoán ▴" else "Chẩn đoán ▾"
         }
         findViewById<TextView>(R.id.filesDir).text =
             "Ảnh (tối đa 100 ảnh mới nhất) và nhật ký lưu tại: ${getExternalFilesDir(null)} (thư mục debug/ và nhat_ky.txt)"
@@ -127,6 +170,14 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         BotService.instance?.setAppScreenOpen(true)
+        // Bảng nổi có thể vừa đổi hai lựa chọn này trong lúc màn hình cài đặt đang ở nền.
+        findViewById<RadioGroup>(R.id.cheDo).check(when (prefs.cheDo) {
+            "afk" -> R.id.cheDoAfk
+            "huyen_linh" -> R.id.cheDoHuyenLinh
+            else -> R.id.cheDoCaHai
+        })
+        findViewById<CheckBox>(R.id.tuDong).isChecked = prefs.tuDong
+        findViewById<CheckBox>(R.id.leoHo).isChecked = prefs.leoHo
         veKhungTuong()
         showSteps()
         showStatus()
@@ -136,6 +187,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         BotService.instance?.let {
             it.refreshOverlay()
             it.setAppScreenOpen(false)
@@ -151,20 +203,33 @@ class MainActivity : Activity() {
     }
 
     private fun showStatus() {
+        findViewById<TextView>(R.id.heroesStatus).text = BotService.instance?.heroesReadStatus
+            ?: "Bật Trợ năng rồi mở game ở Màn AFK hoặc màn đội hình để đọc khung tướng."
         botStatus.text = if (BotService.instance == null) "Chưa bật Trợ năng - làm theo các bước bên dưới."
                          else BotStatus.text
+        val svc = BotService.instance
+        val active = svc?.isJobRunning == true
+        findViewById<TextView>(R.id.runBot).apply { text = if (active) "■ Dừng bot" else "▶ Chạy bot"; isEnabled = svc != null }
+        findViewById<TextView>(R.id.energyStatus).text = if (active) "Đang giữ màn hình sáng" else "Đã tắt giữ sáng · theo thời gian chờ của máy"
+        if (active) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        for (id in listOf(R.id.cheDoCaHai, R.id.cheDoAfk, R.id.cheDoHuyenLinh, R.id.leoHo, R.id.readHeroes)) findViewById<View>(id).isEnabled = !active
     }
 
     /** Đánh dấu ✓ các bước đã xong, ẩn nút của bước đã xong. */
     private fun showSteps() {
         val a11y = BotService.instance != null
         val notify = Notifier.allowed(this)
+        if (!a11y || !notify) {
+            findViewById<View>(R.id.setupPanel).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.setupToggle).text = "Thiết lập ban đầu ▴"
+        }
         mark(R.id.step1, a11y)
         for (id in listOf(R.id.step1Hint, R.id.openA11y)) findViewById<View>(id).visibility = if (a11y) View.GONE else View.VISIBLE
         // "Cài đặt bị hạn chế" chỉ có từ Android 13, với app cài từ file APK.
         val restricted = !a11y && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
         for (id in listOf(R.id.restrictedHint, R.id.openAppInfo)) findViewById<View>(id).visibility = if (restricted) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.reopenOverlay).visibility = if (a11y && prefs.overlayClosed) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.reopenOverlay).visibility = if (a11y) View.VISIBLE else View.GONE
         mark(R.id.step2, notify)
         findViewById<View>(R.id.allowNotify).visibility = if (notify) View.GONE else View.VISIBLE
     }

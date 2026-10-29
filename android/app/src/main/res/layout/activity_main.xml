@@ -1,334 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/scroll"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:clipToPadding="false">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <!-- Trạng thái -->
-        <TextView
-            android:id="@+id/botStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/card"
-            android:padding="12dp"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/reopenOverlay"
-            style="@style/StepButton"
-            android:layout_marginTop="8dp"
-            android:text="Hiện bảng nổi"
-            android:visibility="gone" />
-
-        <!-- Bắt đầu -->
-        <TextView
-            style="@style/Header"
-            android:text="Bắt đầu" />
-
-        <TextView
-            android:id="@+id/step1"
-            style="@style/Step"
-            android:text="1. Bật Trợ năng cho AFK Auto" />
-
-        <TextView
-            android:id="@+id/step1Hint"
-            style="@style/Hint"
-            android:text="Cài đặt → Hỗ trợ → Ứng dụng đã cài đặt → AFK Auto → bật, rồi bấm Cho phép." />
-
-        <Button
-            android:id="@+id/openA11y"
-            style="@style/StepButton"
-            android:text="Mở cài đặt Trợ năng" />
-
-        <TextView
-            android:id="@+id/restrictedHint"
-            style="@style/Hint"
-            android:text="Nếu máy báo &quot;Ứng dụng đã bị từ chối cấp quyền&quot; (hoặc ghi &quot;Do chế độ Cài đặt hạn chế kiểm soát&quot;): bấm Đóng → bấm nút dưới → ⋮ ở góc trên phải → Cho phép cài đặt bị hạn chế → xác nhận bằng vân tay/mã PIN → quay lại bật Trợ năng.\nNút ⋮ chỉ hiện sau khi bạn đã thử bật Trợ năng và bị báo như trên." />
-
-        <Button
-            android:id="@+id/openAppInfo"
-            style="@style/StepButton"
-            android:text="Mở thông tin ứng dụng" />
-
-        <TextView
-            android:id="@+id/step2"
-            style="@style/Step"
-            android:text="2. Cho phép thông báo (để bot báo khi dừng hoặc cần bạn)" />
-
-        <Button
-            android:id="@+id/allowNotify"
-            style="@style/StepButton"
-            android:text="Cho phép thông báo" />
-
-        <TextView
-            style="@style/Step"
-            android:text="3. Mở Hành Trình AFK, vào Màn AFK" />
-
-        <Button
-            android:id="@+id/openGame"
-            style="@style/StepButton"
-            android:text="Mở game" />
-
-        <TextView
-            style="@style/Step"
-            android:text="4. Bấm ▶ Chạy trên bảng nổi ở phía trên màn hình" />
-
-        <TextView
-            style="@style/Hint"
-            android:text="• ▶ Chạy: đánh liên tục. Thua đủ số trận thì bot mở Thành Tích, chép đội của người chơi khác đã qua ải (theo thứ tự của game, bỏ đội Chiến Đấu Thủ Công, đội có tướng thiếu khung để sau cùng). Đội vừa chép mà lực chiến đội bạn thấp hơn ngưỡng thì bot chưa đánh mà chép thử đội khác. Thử hết đội thì chuyển chế độ; hết cả hai thì dừng và báo.\n• Lần chạy đầu, bot đọc danh sách tướng ở màn đội hình (1-2 phút, không đánh) để biết tướng nào của bạn chưa có khung. Nâng phẩm tướng xong thì đọc lại: bật Hiện các bài thử (Nâng cao) → ⋯ → Khung tướng.\n• ■: dừng.  ≡: chạm để xem nhật ký, kéo để dời bảng nổi.\n• ✕: đóng bảng nổi (dừng bot nếu đang chạy). Mở lại bằng nút Hiện bảng nổi ở đầu màn hình này." />
-
-        <!-- Khung tướng -->
-        <TextView
-            style="@style/Header"
-            android:text="Khung tướng của bạn" />
-
-        <TextView
-            style="@style/Hint"
-            android:text="Các tướng mà nhiều bản ghi Thành Tích dùng có khung (số % là phần bản ghi dùng tướng đó có khung). Thiếu khung tướng nào thì đội chép có tướng đó gần như luôn thua, nên bot để các đội đó sau cùng.\n• Chọn Có khung / Không khung / Chưa có cho đúng với tài khoản của bạn: bot luôn dùng lựa chọn này thay cho kết quả tự đọc. Nâng khung tướng nào thì chọn lại tướng đó.\n• Ảnh thẻ bên phải là thẻ trong danh sách tướng của bạn giống tướng đó nhất (lần đọc khung gần nhất); chạm vào ảnh để xem thẻ khác. Đúng là tướng đó thì tích Đúng tướng: lần đọc sau bot nhận đúng ngay." />
-
-        <LinearLayout
-            android:id="@+id/khungTuong"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
-        <!-- Cài đặt -->
-        <TextView
-            style="@style/Header"
-            android:text="Cài đặt" />
-
-        <TextView
-            style="@style/Label"
-            android:layout_width="match_parent"
-            android:text="Chế độ leo" />
-
-        <RadioGroup
-            android:id="@+id/cheDo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <RadioButton
-                android:id="@+id/cheDoCaHai"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Cả hai (Huyền Linh trước, kẹt thì sang Màn AFK)" />
-
-            <RadioButton
-                android:id="@+id/cheDoAfk"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Chỉ Màn AFK (nút Chiến Đấu)" />
-
-            <RadioButton
-                android:id="@+id/cheDoHuyenLinh"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Chỉ Thách Đấu Huyền Linh" />
-        </RadioGroup>
-
-        <CheckBox
-            android:id="@+id/leoHo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Leo hộ người khác (Đại Diện Tác Chiến): bật ô này trước, rồi trong game bấm Đi ở &quot;Yêu Cầu Đại Diện AFK Liên Hoàn&quot; (Trò chuyện Bang Hội) và bấm ▶ Chạy" />
-
-        <LinearLayout style="@style/Row">
-
-            <TextView
-                style="@style/Label"
-                android:text="Số trận mỗi đội trước khi chép đội khác" />
-
-            <EditText
-                android:id="@+id/thuLai"
-                style="@style/Number" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/Row">
-
-            <TextView
-                style="@style/Label"
-                android:text="Số trận của đội vừa thắng khi sang ải mới" />
-
-            <EditText
-                android:id="@+id/thuLaiDoiCu"
-                style="@style/Number" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/Row">
-
-            <TextView
-                style="@style/Label"
-                android:text="Chép thử: đánh ngay khi lực chiến đội bạn ≥ (% lực chiến bản ghi, 0 = tắt)" />
-
-            <EditText
-                android:id="@+id/nguongLuc"
-                style="@style/Number" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/Row">
-
-            <TextView
-                style="@style/Label"
-                android:text="Số vòng thử các đội ở một ải" />
-
-            <EditText
-                android:id="@+id/soVong"
-                style="@style/Number" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textSize="14sp"
-            android:text="Đội có tướng thiếu khung (bản ghi dùng tướng có khung, tướng của bạn không khung)" />
-
-        <RadioGroup
-            android:id="@+id/thieuKhung"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <RadioButton
-                android:id="@+id/thieuKhungCuoi"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Thử sau cùng" />
-
-            <RadioButton
-                android:id="@+id/thieuKhungBo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Bỏ qua" />
-
-            <RadioButton
-                android:id="@+id/thieuKhungThu"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Không so khung" />
-        </RadioGroup>
-
-        <CheckBox
-            android:id="@+id/tuDong"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Tự Động Xử Lý: đội đang dùng còn thắng thì để game tự đánh ngầm (không vẽ cảnh đánh, đỡ tốn pin), thua mới chép đội" />
-
-        <CheckBox
-            android:id="@+id/boCucHan"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Bỏ qua đội Cực Hạn (tỉ lệ thành công thấp)" />
-
-        <LinearLayout style="@style/Row">
-
-            <TextView
-                style="@style/Label"
-                android:text="Dừng sau (giờ, 0 = không giới hạn)" />
-
-            <EditText
-                android:id="@+id/gioToiDa"
-                style="@style/Number" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/Row">
-
-            <TextView
-                style="@style/Label"
-                android:text="Dừng khi tới ải (0 = không)" />
-
-            <EditText
-                android:id="@+id/dungOAi"
-                style="@style/Number" />
-        </LinearLayout>
-
-        <!-- Lưu ý -->
-        <TextView
-            style="@style/Header"
-            android:text="Lưu ý" />
-
-        <TextView
-            style="@style/Hint"
-            android:text="• Cắm sạc khi để bot chạy lâu. Bảng nổi giữ màn hình luôn sáng.\n• Chép đội từ Thành Tích sẽ thay đội hình hiện tại của bạn ở Màn AFK / Huyền Linh.\n• Bot không tự mở lại game; khi game bị thoát, bot gửi thông báo và tự chạy tiếp khi bạn mở lại Màn AFK.\n• Bot tự mở khóa màn hình của Game Booster. Nên tắt khóa màn hình trong Game Booster để bot đỡ phải mở.\n• Bot không bấm mua hay tiêu Kim cương / Vàng.\n• Tự động hóa có thể vi phạm điều khoản của game; bạn tự chịu trách nhiệm khi dùng.\n• App không đọc nội dung ứng dụng khác và không gửi dữ liệu ra ngoài." />
-
-        <!-- Nhật ký -->
-        <TextView
-            style="@style/Header"
-            android:text="Nhật ký" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/copyLog"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Sao chép nhật ký" />
-
-            <Button
-                android:id="@+id/clearLog"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Xóa nhật ký" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/log"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:textIsSelectable="true"
-            android:textSize="11sp" />
-
-        <!-- Nâng cao -->
-        <Button
-            android:id="@+id/toggleAdvanced"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Nâng cao ▾" />
-
-        <LinearLayout
-            android:id="@+id/advanced"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <CheckBox
-                android:id="@+id/showProbes"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Hiện các bài thử trên bảng nổi (nút ⋯): đánh 1 trận, nhận diện màn hình, đọc Thành Tích, đọc lại khung tướng" />
-
-            <CheckBox
-                android:id="@+id/saveImages"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Lưu ảnh để tra lỗi" />
-
-            <TextView
-                android:id="@+id/filesDir"
-                style="@style/Hint"
-                android:textIsSelectable="true" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/version"
-            style="@style/Hint"
-            android:layout_marginTop="16dp"
-            android:gravity="center" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/ui_background">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AFK Auto" android:textSize="24sp" android:textStyle="bold" android:textColor="@color/ui_ink" android:padding="20dp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingLeft="8dp" android:paddingRight="8dp">
+        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:id="@+id/tabTask" android:text="Điều khiển" android:layout_weight="1" android:textSize="11sp" style="?android:attr/borderlessButtonStyle" />
+        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:id="@+id/tabHeroes" android:text="Khung tướng" android:layout_weight="1" android:textSize="11sp" style="?android:attr/borderlessButtonStyle" />
+        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:id="@+id/tabLogs" android:text="Nhật ký" android:layout_weight="1" android:textSize="11sp" style="?android:attr/borderlessButtonStyle" />
+        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:id="@+id/tabSettings" android:text="Cài đặt" android:layout_weight="1" android:textSize="11sp" style="?android:attr/borderlessButtonStyle" />
     </LinearLayout>
-</ScrollView>
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:id="@+id/scroll" android:fillViewport="true" android:clipToPadding="false" android:layout_weight="1">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/pages" android:orientation="vertical" android:padding="20dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/pageTask" android:orientation="vertical">
+                <TextView android:id="@+id/botStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/card" android:padding="12dp" android:textSize="16sp" android:textStyle="bold" />
+                <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/runBot" android:text="▶ Chạy bot" android:backgroundTint="#256C50" android:textColor="#FFFFFF" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/energyStatus" android:text="Đã tắt giữ sáng" android:textColor="@color/ui_muted" android:textSize="13sp" android:paddingTop="8dp" android:paddingBottom="16dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Chế độ leo" android:textSize="13sp" android:textColor="@color/ui_muted" android:paddingTop="8dp" android:paddingBottom="8dp" />
+                <RadioGroup android:id="@+id/cheDo" android:layout_width="match_parent" android:layout_height="wrap_content">
+                    <RadioButton android:id="@+id/cheDoCaHai" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cả hai (Huyền Linh trước, kẹt thì sang Màn AFK)" />
+                    <RadioButton android:id="@+id/cheDoAfk" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Chỉ Màn AFK (nút Chiến Đấu)" />
+                    <RadioButton android:id="@+id/cheDoHuyenLinh" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Chỉ Thách Đấu Huyền Linh" />
+                </RadioGroup>
+                <CheckBox android:id="@+id/leoHo" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Leo hộ người khác" />
+                <CheckBox android:id="@+id/tuDong" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tự động chiến đấu" />
+                <Button android:id="@+id/reopenOverlay" style="@style/StepButton" android:layout_marginTop="8dp" android:text="Hiện bảng nổi" android:visibility="gone" />
+                <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/setupToggle" android:text="Thiết lập ban đầu ▴" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/setupPanel" android:orientation="vertical">
+                    <TextView style="@style/Header" android:text="Bắt đầu" />
+                    <TextView android:id="@+id/step1" style="@style/Step" android:text="1. Bật Trợ năng cho AFK Auto" />
+                    <TextView android:id="@+id/step1Hint" style="@style/Hint" android:text="Cài đặt → Hỗ trợ → Ứng dụng đã cài đặt → AFK Auto → bật, rồi bấm Cho phép." />
+                    <Button android:id="@+id/openA11y" style="@style/StepButton" android:text="Mở cài đặt Trợ năng" />
+                    <TextView android:id="@+id/restrictedHint" style="@style/Hint" android:text="Nếu máy báo &quot;Ứng dụng đã bị từ chối cấp quyền&quot; (hoặc ghi &quot;Do chế độ Cài đặt hạn chế kiểm soát&quot;): bấm Đóng → bấm nút dưới → ⋮ ở góc trên phải → Cho phép cài đặt bị hạn chế → xác nhận bằng vân tay/mã PIN → quay lại bật Trợ năng.\nNút ⋮ chỉ hiện sau khi bạn đã thử bật Trợ năng và bị báo như trên." />
+                    <Button android:id="@+id/openAppInfo" style="@style/StepButton" android:text="Mở thông tin ứng dụng" />
+                    <TextView android:id="@+id/step2" style="@style/Step" android:text="2. Cho phép thông báo (để bot báo khi dừng hoặc cần bạn)" />
+                    <Button android:id="@+id/allowNotify" style="@style/StepButton" android:text="Cho phép thông báo" />
+                    <TextView style="@style/Step" android:text="3. Mở Hành Trình AFK, vào Màn AFK" />
+                    <Button android:id="@+id/openGame" style="@style/StepButton" android:text="Mở game" />
+                    <TextView style="@style/Step" android:text="4. Bấm ▶ Chạy trên bảng nổi ở phía trên màn hình" />
+                    <TextView style="@style/Hint" android:text="Chọn chế độ, bật Leo hộ nếu cần, rồi bấm Chạy. Mở rộng bảng nổi → Nâng cao để dùng các bài thử và xem nhật ký. Dừng hoặc đóng bot sẽ tắt giữ sáng." />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/pageHeroes" android:orientation="vertical" android:visibility="gone">
+                <TextView style="@style/Header" android:text="Khung tướng của bạn" />
+                <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/readHeroes" android:text="Đọc lại khung tướng" />
+                <TextView android:id="@+id/heroesStatus" style="@style/Hint" android:text="Bấm đọc để trở lại game, rồi mở Màn AFK hoặc màn đội hình. Bot chờ tối đa 45 giây để nhận đúng màn và bắt đầu đọc. Kết quả cập nhật khi quay lại app." />
+                <TextView style="@style/Hint" android:text="Các tướng mà nhiều bản ghi Thành Tích dùng có khung (số % là phần bản ghi dùng tướng đó có khung). Thiếu khung tướng nào thì đội chép có tướng đó gần như luôn thua, nên bot để các đội đó sau cùng.\n• Chọn Có khung / Không khung / Chưa có cho đúng với tài khoản của bạn: bot luôn dùng lựa chọn này thay cho kết quả tự đọc. Nâng khung tướng nào thì chọn lại tướng đó.\n• Ảnh thẻ bên phải là thẻ trong danh sách tướng của bạn giống tướng đó nhất (lần đọc khung gần nhất); chạm vào ảnh để xem thẻ khác. Đúng là tướng đó thì tích Đúng tướng: lần đọc sau bot nhận đúng ngay." />
+                <LinearLayout android:id="@+id/khungTuong" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/pageLogs" android:orientation="vertical" android:visibility="gone">
+                <TextView style="@style/Header" android:text="Nhật ký" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                    <Button android:id="@+id/copyLog" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Sao chép nhật ký" />
+                    <Button android:id="@+id/clearLog" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Xóa nhật ký" />
+                </LinearLayout>
+                <TextView android:id="@+id/log" android:layout_width="match_parent" android:layout_height="wrap_content" android:fontFamily="monospace" android:textIsSelectable="true" android:textSize="11sp" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/pageSettings" android:orientation="vertical" android:visibility="gone">
+                <TextView style="@style/Header" android:text="Cài đặt" />
+                <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/teamToggle" android:text="Chọn đội ▴" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/teamSettings" android:orientation="vertical">
+                    <LinearLayout style="@style/Row">
+                        <TextView style="@style/Label" android:text="Số trận mỗi đội trước khi chép đội khác" />
+                        <EditText android:id="@+id/thuLai" style="@style/Number" />
+                    </LinearLayout>
+                    <LinearLayout style="@style/Row">
+                        <TextView style="@style/Label" android:text="Số trận của đội vừa thắng khi sang ải mới" />
+                        <EditText android:id="@+id/thuLaiDoiCu" style="@style/Number" />
+                    </LinearLayout>
+                    <LinearLayout style="@style/Row">
+                        <TextView style="@style/Label" android:text="Chép thử: đánh ngay khi lực chiến đội bạn ≥ (% lực chiến bản ghi, 0 = tắt)" />
+                        <EditText android:id="@+id/nguongLuc" style="@style/Number" />
+                    </LinearLayout>
+                    <LinearLayout style="@style/Row">
+                        <TextView style="@style/Label" android:text="Số vòng thử các đội ở một ải" />
+                        <EditText android:id="@+id/soVong" style="@style/Number" />
+                    </LinearLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textSize="14sp" android:text="Đội có tướng thiếu khung (bản ghi dùng tướng có khung, tướng của bạn không khung)" />
+                    <RadioGroup android:id="@+id/thieuKhung" android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <RadioButton android:id="@+id/thieuKhungCuoi" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Thử sau cùng" />
+                        <RadioButton android:id="@+id/thieuKhungBo" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Bỏ qua" />
+                        <RadioButton android:id="@+id/thieuKhungThu" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Không so khung" />
+                    </RadioGroup>
+                    <CheckBox android:id="@+id/boCucHan" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Bỏ qua đội Cực Hạn (tỉ lệ thành công thấp)" />
+                </LinearLayout>
+                <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/limitToggle" android:text="Giới hạn chạy ▴" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/limitSettings" android:orientation="vertical">
+                    <LinearLayout style="@style/Row">
+                        <TextView style="@style/Label" android:text="Dừng sau (giờ, 0 = không giới hạn)" />
+                        <EditText android:id="@+id/gioToiDa" style="@style/Number" />
+                    </LinearLayout>
+                    <LinearLayout style="@style/Row">
+                        <TextView style="@style/Label" android:text="Dừng khi tới ải (0 = không)" />
+                        <EditText android:id="@+id/dungOAi" style="@style/Number" />
+                    </LinearLayout>
+                </LinearLayout>
+                <Button android:id="@+id/toggleAdvanced" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Chẩn đoán ▾" />
+                <LinearLayout android:id="@+id/advanced" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <CheckBox android:id="@+id/showProbes" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hiện các bài thử trên bảng nổi (nút ⋯): đánh 1 trận, nhận diện màn hình, đọc Thành Tích, đọc lại khung tướng" android:visibility="gone" />
+                    <CheckBox android:id="@+id/saveImages" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Lưu ảnh để tra lỗi" />
+                    <TextView android:id="@+id/filesDir" style="@style/Hint" android:textIsSelectable="true" />
+                </LinearLayout>
+                <TextView style="@style/Header" android:text="Lưu ý" />
+                <TextView style="@style/Hint" android:text="• Cắm sạc khi để bot chạy lâu. Chỉ giữ màn hình sáng khi bot đang chạy.\n• Chép đội từ Thành Tích sẽ thay đội hình hiện tại của bạn ở Màn AFK / Huyền Linh.\n• Bot không tự mở lại game; khi game bị thoát, bot gửi thông báo và tự chạy tiếp khi bạn mở lại Màn AFK.\n• Bot tự mở khóa màn hình của Game Booster. Nên tắt khóa màn hình trong Game Booster để bot đỡ phải mở.\n• Bot không bấm mua hay tiêu Kim cương / Vàng.\n• Tự động hóa có thể vi phạm điều khoản của game; bạn tự chịu trách nhiệm khi dùng.\n• App không đọc nội dung ứng dụng khác và không gửi dữ liệu ra ngoài." />
+                <TextView android:id="@+id/version" style="@style/Hint" android:layout_marginTop="16dp" android:gravity="center" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

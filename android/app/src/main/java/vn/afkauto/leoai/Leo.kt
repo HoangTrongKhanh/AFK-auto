@@ -1060,8 +1060,10 @@ class Leo(private val svc: BotService) {
         KhungTuong.ghiUngVien(svc.filesDir, out)
     }
 
-    suspend fun docTuong() {
-        if (docDanhSachTuong()) soKhung = napSoKhung()
+    suspend fun docTuong(): Boolean {
+        val ok = docDanhSachTuong()
+        if (ok) soKhung = napSoKhung()
+        return ok
     }
 
     /** Mở màn đội hình (nếu đang ở Màn AFK, chưa đánh), về đầu danh sách tướng rồi vuốt dần xuống tới hết, đọc khung và nhận

@@ -11,6 +11,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.view.Display
+import android.widget.Toast
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import kotlinx.coroutines.CancellationException
@@ -122,7 +123,66 @@ class BotService : AccessibilityService() {
     fun startReadRecords() = runJob("Đọc Thành Tích") { leo.chay(Leo.CheDoChay.XEM_THANH_TICH) }
 
     /** Đọc khung (phẩm) tướng của bạn ở danh sách tướng màn đội hình; chạy lại sau khi nâng phẩm tướng. */
-    fun startReadHeroes() = runJob("Đọc khung tướng") { leo.docTuong() }
+    var heroesReadStatus = "Bấm đọc để trở lại game, rồi mở Màn AFK hoặc màn đội hình. Bot chờ tối đa 45 giây; kết quả cập nhật khi quay lại app."
+        private set
+
+    fun startReadHeroes() = runJob("Đọc khung tướng") { readHeroes() }
+
+    /** Màn app phải xuống nền trước khi đọc; không chụp chính giao diện cài đặt. */
+    fun startReadHeroesFromApp() = runJob("Đọc khung tướng") {
+        heroesReadStatus = "Đang chờ game hiện để đọc khung tướng…"
+        val ready = withTimeoutOrNull(4000) {
+            while (appScreenOpen) delay(100)
+            // Không dùng tên cửa sổ từ Trợ năng: thông báo/lớp phủ Samsung có thể thay tên dù game vẫn hiện.
+            // Luồng đọc kiểm tra Màn AFK/đội hình bằng ảnh trước khi bấm bất cứ nút nào.
+            delay(700)
+            true
+        } == true
+        if (!ready) {
+            heroesReadStatus = "Chưa thấy game. Hãy mở Màn AFK hoặc màn đội hình rồi bấm Khung tướng trong Nâng cao của bảng nổi."
+            Toast.makeText(this, heroesReadStatus, Toast.LENGTH_LONG).show()
+            throw StopBot(heroesReadStatus)
+        }
+        readHeroes(waitForScreen = true)
+    }
+
+    private suspend fun readHeroes(waitForScreen: Boolean = false) {
+        try {
+            if (waitForScreen) {
+                heroesReadStatus = "Mở Màn AFK hoặc màn đội hình trong game. Bot đang chờ tối đa 45 giây để đọc."
+                BotStatus.set("Đọc khung · chờ Màn AFK / đội hình")
+                Toast.makeText(this, heroesReadStatus, Toast.LENGTH_LONG).show()
+                val found = withTimeoutOrNull(45_000) {
+                    var ready = false
+                    while (!ready) {
+                        val img = screenshot()
+                        ready = try {
+                            withContext(Dispatchers.Default) { nd.nhanDien(img).manHinh in listOf("man_afk", "doi_hinh") }
+                        } finally { img.release() }
+                        if (!ready) delay(1000)
+                    }
+                    true
+                } == true
+                if (!found) {
+                    heroesReadStatus = "Chưa thấy Màn AFK hoặc đội hình sau 45 giây. Mở đúng màn rồi thử lại bằng nút Khung tướng trên bảng nổi."
+                    throw StopBot(heroesReadStatus)
+                }
+            }
+            heroesReadStatus = "Đang đọc khung tướng…"
+            BotStatus.set("Đang đọc khung tướng")
+            val ok = leo.docTuong()
+            heroesReadStatus = if (ok) "Đã đọc xong khung tướng. Kết quả bên dưới đã được cập nhật."
+                else "Chưa đọc được: hãy mở Màn AFK hoặc màn đội hình trong game rồi thử lại."
+            Toast.makeText(this, heroesReadStatus, Toast.LENGTH_LONG).show()
+            if (!ok) throw StopBot(heroesReadStatus)
+        } catch (e: CancellationException) {
+            heroesReadStatus = "Đã dừng đọc khung tướng. Bạn có thể bấm đọc lại."
+            throw e
+        } catch (e: Exception) {
+            if (e !is StopBot) heroesReadStatus = "Đọc khung tướng gặp lỗi: ${e.message}. Xem Nhật ký để biết chi tiết."
+            throw e
+        }
+    }
 
     /** Bài thử: nhận diện màn hình hiện tại và ghi vào nhật ký. */
     fun startRecognize() = runJob("Nhận diện màn hình") { leo.nhanDienThu() }
