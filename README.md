@@ -81,6 +81,22 @@ trận đầu, bản ghi không thiếu khung thắng 15/20. Đọc lại danh s
 
 ## App Android (android/)
 
+Từ bản 1.12, nút Đóng nằm cạnh nút mở rộng trên hàng đầu của bảng nổi, cách nhau 8dp và có viền riêng. Nền xám của app và bảng nổi sáng thêm một mức; giữ chiều cao nút 24dp.
+
+Từ bản 1.11, nền tối sáng hơn và chữ phụ rõ hơn. Nút mở rộng bảng nổi rộng riêng 40dp, nút Đóng bảng chuyển xuống hàng riêng trong phần mở rộng. Các nút thao tác cao 24dp (trước 32dp), hàng lựa chọn cao 26dp với biểu tượng nhỏ hơn.
+
+Từ bản 1.10, toàn bộ app và bảng nổi dùng giao diện tối. Thiết lập ban đầu và Giới hạn chạy mặc định mở. Bảng nổi nhỏ hơn, Leo hộ / Tự động cùng hàng, Nâng cao có nút viền rõ và chỉ giữ ô nhật ký. Khi chạy bảng tự thu gọn; khi chụp hoặc chạm/vuốt luôn ẩn tạm để tránh che game. Đọc lại khung tướng trong app đưa app xuống nền, chờ tối đa 45 giây để bạn mở Màn AFK hoặc đội hình rồi dùng luồng đọc cũ; báo rõ kết quả hoặc màn cần mở.
+
+Từ bản 1.9, bảng nổi mặc định thu gọn: mở ⌄ để chọn Cả hai / Ải AFK, Leo hộ và Tự động chiến đấu. Mở tiếp Nâng cao để dùng Leo 1 trận, Nhận diện, Thành Tích, Khung tướng và xem nhật ký. App tách bốn mục Điều khiển, Khung tướng, Nhật ký và Cài đặt. Chỉ giữ màn hình sáng khi có tác vụ đang chạy; dừng, kết thúc, lỗi hoặc đóng bảng nổi đều bỏ giữ sáng (không tự tắt màn hình ngay).
+
+Từ bản 1.8, bảng nổi có hàng chọn **Cả hai / Ải AFK / Huyền Linh** và ô **Tự động chiến đấu**, dùng chung cài đặt
+với màn hình app. Chọn chế độ khi bot đang dừng rồi bấm ▶; ô tự động có thể bật/tắt khi bot đang chạy và được áp dụng
+ở quyết định tiếp theo (không hủy chuỗi tự động game đã bắt đầu). Màn hình hẹp có thể vuốt ngang hàng lựa chọn.
+
+Từ bản 1.7, màn THẮNG nhận cả nút "Chiến Đấu" cũ và nút "Thách Đấu Huyền Linh Sinh Vật" mới (25/10), đọc đủ tiến
+trình 4 chữ số, bấm lại nút đi tiếp nếu màn thắng chưa chuyển sau lần bấm đầu, và xử lý bảng thông tin ải Huyền Linh
+khi bảng này đang mở.
+
 App AfkAuto (`./gradlew phatHanh` → `AfkAuto-<phiên bản>.apk`) có cùng các tính năng chọn đội với bản PC: đánh mỗi đội 1
 trận, chép thử theo tỉ lệ lực chiến, vòng 2, so khung tướng, xử lý Thành Tích trống. Lần chạy đầu, app tự đọc danh sách
 tướng ở màn đội hình (lưu trong thư mục riêng của app); đọc lại bằng ⋯ → Khung tướng trên bảng nổi. Từ bản 1.6 có ô
