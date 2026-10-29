@@ -1,0 +1,10 @@
+<resources>
+    <color name="ui_background">#3B4853</color>
+    <color name="ui_surface">#4D5C69</color>
+    <color name="ui_ink">#FFFFFF</color>
+    <color name="ui_muted">#D5DFE7</color>
+    <color name="ui_accent">#6CD7AC</color>
+    <color name="ui_selected">#375E51</color>
+    <color name="ui_border">#92A6B5</color>
+    <color name="ui_danger">#FFB4A9</color>
+</resources>

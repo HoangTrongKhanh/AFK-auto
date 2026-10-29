@@ -15,6 +15,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -48,9 +49,7 @@ private const val OVERLAY_HIDE_WAIT = 80L           // ẩn bảng nổi rồi c
 private const val MAX_DEBUG_IMAGES = 100            // ~3MB/ảnh trên máy 1600x2560
 private val FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
 
-// Dải trống phía trên màn hình (toạ độ máy gốc rộng 1600, bám mép trên): không mẫu nhận diện nào của game nằm ở đây
-// (ô lọc Thành Tích, đồng hồ trận, tiêu đề màn đội hình ở y < 150; thanh thẻ Thành Tích từ y 357). Bảng nổi nằm gọn
-// trong dải này thì chụp thẳng, lấn ra ngoài thì ẩn tạm khi chụp.
+// Vị trí mặc định của bảng nổi (toạ độ máy gốc rộng 1600). Khi chụp hoặc thao tác luôn ẩn bảng tạm.
 val DAI_AN_TOAN = Box(100, 150, 1300, 330)
 
 const val GAME_PACKAGE = "com.farlightgames.igame.gp.vn"
@@ -79,6 +78,7 @@ class BotService : AccessibilityService() {
     private val shotExecutor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var job: Job? = null
+    val isJobRunning: Boolean get() = job?.isActive == true
 
     /** App đang ở trên cùng màn hình (theo sự kiện đổi cửa sổ, bỏ qua chính app này), "" nếu chưa biết. */
     @Volatile
@@ -130,7 +130,7 @@ class BotService : AccessibilityService() {
     /** Chạy một tác vụ; mỗi lúc chỉ một tác vụ. */
     fun runJob(name: String, block: suspend () -> Unit) {
         if (job?.isActive == true) return
-        val j = scope.launch {
+        val j = scope.launch(start = CoroutineStart.LAZY) {
             AppLog.i("▶ $name")
             try {
                 block()
@@ -150,21 +150,28 @@ class BotService : AccessibilityService() {
         }
         job = j
         onJobChanged(name)
+        overlay?.setKeepingScreenOn(true)
         j.invokeOnCompletion {
             main.post {
                 if (job === j) {
+                    prefs.running = false
+                    overlay?.setKeepingScreenOn(false)
                     onJobChanged(null)
                     val what = if (prefs.overlayClosed) "Bảng nổi đã đóng" else "Đã dừng"
                     BotStatus.set("$what · ${prefs.todayText()}")
                 }
             }
         }
+        BotStatus.set("Đang chạy · $name")
+        j.start()
     }
 
     /** ■: dừng tác vụ đang chạy (người dùng chủ động dừng nên không tự chạy tiếp nữa). */
     fun stopJob() {
         prefs.running = false
+        overlay?.setKeepingScreenOn(false)
         job?.cancel()
+        BotStatus.set("Đã dừng · ${prefs.todayText()}")
     }
 
     /** Lưu ảnh vào files/debug/ (nếu bật trong màn hình chính); giữ tối đa MAX_DEBUG_IMAGES ảnh mới nhất. */
@@ -203,6 +210,7 @@ class BotService : AccessibilityService() {
         overlay?.hide()
         overlay = null
         shotExecutor.shutdown()
+        BotStatus.set("Đã tắt dịch vụ Trợ năng")
         AppLog.i("Đã tắt dịch vụ Trợ năng.")
     }
 
@@ -220,7 +228,7 @@ class BotService : AccessibilityService() {
         applyOverlayVisibility()
     }
 
-    /** Nút ✕: đóng bảng nổi. Bảng nổi giữ màn hình sáng cho bot nên đóng nó thì dừng bot luôn. */
+    /** Nút ✕: đóng bảng nổi và dừng bot, đồng thời bỏ giữ sáng. */
     fun closeOverlay() {
         if (job?.isActive == true) stopJob()
         AppLog.i("Đã đóng bảng nổi. Mở lại bằng nút Hiện bảng nổi trong app.")
@@ -233,7 +241,7 @@ class BotService : AccessibilityService() {
     fun reopenOverlay() {
         prefs.overlayClosed = false
         applyOverlayVisibility()
-        BotStatus.set("Sẵn sàng · ${prefs.todayText()}")
+        if (!isJobRunning) BotStatus.set("Sẵn sàng · ${prefs.todayText()}")
     }
 
     fun refreshOverlay() {
@@ -248,43 +256,42 @@ class BotService : AccessibilityService() {
         return Box((DAI_AN_TOAN.x0 * s).toInt(), (DAI_AN_TOAN.y0 * s).toInt(), (DAI_AN_TOAN.x1 * s).toInt(), (DAI_AN_TOAN.y1 * s).toInt())
     }
 
-    /** Bảng nổi đang hiện và lấn ra ngoài dải an toàn (sẽ lọt vào vùng nhận diện của ảnh chụp). */
-    private fun overlayInTheWay(): Boolean {
-        val b = overlay?.boundsOnScreen() ?: return false
-        val safe = safeBand()
-        return !(b.x0 >= safe.x0 && b.y0 >= safe.y0 && b.x1 <= safe.x1 && b.y1 <= safe.y1)
-    }
-
-    // ---------------------------------------------------------------- Chụp màn hình
-
-    /** Ảnh chụp màn hình (BGR). Người gọi giải phóng ảnh. */
-    suspend fun screenshot(): Mat {
-        val hide = overlayInTheWay()
+    /** Ẩn cả bảng thu gọn trước khi chụp/thao tác, kể cả khi người dùng kéo vào vùng game cần đọc. */
+    private suspend fun <T> withoutOverlay(block: suspend () -> T): T {
+        val hide = overlay?.boundsOnScreen() != null
         if (hide) {
             hiddenForShot = true
             applyOverlayVisibility()
-            delay(OVERLAY_HIDE_WAIT)
         }
         try {
-            var retries = 0
-            while (true) {
-                val result = withTimeoutOrNull(SCREENSHOT_TIMEOUT) { requestScreenshot() } ?: SCREENSHOT_NO_RESPONSE
-                if (result is ScreenshotResult) return withContext(Dispatchers.Default) { toMat(result) }
-                val code = result as Int
-                // Hệ thống giới hạn số lần chụp mỗi giây: chờ một chút rồi chụp lại.
-                if (code == ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT && retries < 100) {
-                    retries++
-                    delay(40)
-                    continue
-                }
-                throw ScreenshotFailed(code)
-            }
+            if (hide) delay(OVERLAY_HIDE_WAIT)
+            return block()
         } finally {
             if (hide) {
                 hiddenForShot = false
                 applyOverlayVisibility()
             }
         }
+    }
+
+    // ---------------------------------------------------------------- Chụp màn hình
+
+    /** Ảnh chụp màn hình (BGR). Người gọi giải phóng ảnh. */
+    suspend fun screenshot(): Mat = withoutOverlay {
+        var retries = 0
+        var shot: Mat? = null
+        while (shot == null) {
+            val result = withTimeoutOrNull(SCREENSHOT_TIMEOUT) { requestScreenshot() } ?: SCREENSHOT_NO_RESPONSE
+            if (result is ScreenshotResult) shot = withContext(Dispatchers.Default) { toMat(result) }
+            else {
+                val code = result as Int
+                if (code == ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT && retries < 100) {
+                    retries++
+                    delay(40)
+                } else throw ScreenshotFailed(code)
+            }
+        }
+        shot
     }
 
     /** ScreenshotResult nếu chụp được, mã lỗi (Int) nếu không. */
@@ -322,7 +329,7 @@ class BotService : AccessibilityService() {
     // ---------------------------------------------------------------- Thao tác
 
     /** Thực hiện cử chỉ; false nếu bị huỷ hoặc hệ thống không trả lời trong thời lượng cử chỉ + GESTURE_TIMEOUT_EXTRA. */
-    private suspend fun dispatch(gesture: GestureDescription): Boolean {
+    private suspend fun dispatch(gesture: GestureDescription): Boolean = withoutOverlay {
         val duration = (0 until gesture.strokeCount).maxOf { gesture.getStroke(it).let { s -> s.startTime + s.duration } }
         val result = withTimeoutOrNull(duration + GESTURE_TIMEOUT_EXTRA) {
             suspendCancellableCoroutine { cont ->
@@ -339,7 +346,7 @@ class BotService : AccessibilityService() {
             }
         }
         if (result == null) AppLog.i("  Hệ thống không phản hồi thao tác chạm (màn hình đang bị che?).")
-        return result == true
+        result == true
     }
 
     private fun line(x0: Int, y0: Int, x1: Int, y1: Int) = Path().apply {

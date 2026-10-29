@@ -1,212 +1,194 @@
 package vn.afkauto.leoai
 
 import android.annotation.SuppressLint
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.text.TextUtils
+import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.widget.CheckBox
+import android.widget.CompoundButton
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
 import vn.afkauto.leoai.vision.Box
 import kotlin.math.abs
-import kotlin.math.max
 import kotlin.math.roundToInt
 
-private const val HANDLE_COLOR = 0xFF37474F.toInt()
-private const val LOG_LINES = 4
-
-/** Bảng nổi gọn 1 hàng (≡ ▶ ■ trạng thái ⋯ ✕) nằm trong dải trống phía trên màn hình game (DAI_AN_TOAN), nơi không
- *  có mẫu nhận diện nào, nên lọt vào ảnh chụp cũng không sao. Mở nhật ký (chạm ≡) hoặc các bài thử (⋯) làm bảng lấn
- *  ra ngoài dải: khi đó dịch vụ ẩn tạm bảng trong lúc chụp. Là cửa sổ Trợ năng nên không cần quyền "hiển thị trên ứng
- *  dụng khác". Giữ màn hình luôn sáng khi đang hiện (FLAG_KEEP_SCREEN_ON). */
+/** Bảng nổi thu gọn; các bài thử và nhật ký nằm trong Nâng cao của phần mở rộng. */
 class Overlay(private val svc: BotService) {
     private val wm = svc.getSystemService(WindowManager::class.java)
     private val density = svc.resources.displayMetrics.density
+    private fun dp(v: Int) = (v * density).roundToInt()
+    private val ink = svc.getColor(R.color.ui_ink)
+    private val green = 0xFF27694F.toInt()
+    private val accent = svc.getColor(R.color.ui_accent)
     private val params = WindowManager.LayoutParams(
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        WindowManager.LayoutParams.WRAP_CONTENT,
+        minOf(dp(260), svc.screenWidth() - dp(16)), WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
-        x = svc.prefs.overlayX.takeIf { it >= 0 } ?: defaultX()
-        y = svc.prefs.overlayY.takeIf { it >= 0 } ?: defaultY()
+        x = svc.prefs.overlayX.takeIf { it >= 0 } ?: svc.safeBand().x0
+        y = svc.prefs.overlayY.takeIf { it >= 0 } ?: svc.safeBand().y0
     }
     private val root = LinearLayout(svc)
-    private val handle = TextView(svc)
+    private val options = LinearLayout(svc)
+    private val advanced = LinearLayout(svc)
     private val statusView = TextView(svc)
     private val logView = TextView(svc)
-    private lateinit var moreButton: TextView
-    private val probeRow = LinearLayout(svc)
-    private val actions = mutableListOf<TextView>()     // các nút bắt đầu tác vụ: tắt khi đang chạy
-    private lateinit var stopButton: TextView
-    private var logShown = false
-    private var probesShown = false
-    private val logListener: () -> Unit = {
-        logView.text = AppLog.recent(8).joinToString("\n") { it.substringAfter(' ').trim() }   // bỏ giờ cho gọn
-        logView.post { scrollLogToEnd() }
-    }
-
-    /** Ô nhật ký cao cố định LOG_LINES dòng; dòng dài xuống hàng thì cuộn để luôn thấy dòng mới nhất. */
-    private fun scrollLogToEnd() {
-        val layout = logView.layout ?: return
-        val visible = logView.height - logView.totalPaddingTop - logView.totalPaddingBottom
-        val overflow = layout.height - visible
-        if (overflow <= 0) return logView.scrollTo(0, 0)
-        var first = layout.getLineForVertical(overflow)
-        if (layout.getLineTop(first) < overflow) first++
-        logView.scrollTo(0, layout.getLineTop(first))
-    }
-
+    private val cheDo = RadioGroup(svc)
+    private val nutCheDo = mutableMapOf<String, RadioButton>()
+    private val leoHo = CheckBox(svc)
+    private val tuDong = CheckBox(svc)
+    private lateinit var runButton: TextView
+    private lateinit var expandButton: TextView
+    private lateinit var advancedButton: TextView
+    private val actions = mutableListOf<TextView>()
+    private var expanded = false
+    private var advancedShown = false
+    private var syncing = false
+    private var running = false
     private val statusListener: () -> Unit = { statusView.text = BotStatus.text }
-
-    private fun dp(v: Int) = (v * density).roundToInt()
-
-    // Vị trí mặc định: góc trên-trái của dải an toàn.
-    private fun defaultX() = svc.safeBand().x0 + dp(2)
-    private fun defaultY() = svc.safeBand().y0 + dp(2)
-
+    private val logListener: () -> Unit = {
+        logView.text = AppLog.recent(30).joinToString("\n")
+        logView.post {
+            val layout = logView.layout
+            if (layout != null) logView.scrollTo(0, maxOf(0, layout.height - logView.height + logView.totalPaddingTop + logView.totalPaddingBottom))
+        }
+    }
     init {
         root.orientation = LinearLayout.VERTICAL
-        val row = LinearLayout(svc).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        root.background = rounded(svc.getColor(R.color.ui_surface), true)
+        root.setPadding(dp(4), dp(3), dp(4), dp(3))
+        val row = line()
+        row.addView(chip("⠿") {}.apply { setOnTouchListener(DragToMove()) })
+        statusView.apply { textSize = 11f; setTextColor(ink); maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
+        row.addView(statusView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        runButton = chip("▶ Chạy") { if (running) svc.stopJob() else svc.startBot() }.also { it.setTextColor(Color.WHITE); it.background = rounded(green); row.addView(it) }
+        expandButton = chip("⌄") { setExpanded(!expanded) }.also {
+            it.contentDescription = "Mở hoặc thu gọn bảng nổi"
+            it.background = rounded(svc.getColor(R.color.ui_background), true)
+            row.addView(it, LinearLayout.LayoutParams(dp(40), dp(24)).apply { leftMargin = dp(6) })
         }
-        handle.apply {
-            text = "≡"
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = rounded(HANDLE_COLOR)
-            setPadding(dp(9), dp(4), dp(9), dp(4))
-            setOnTouchListener(DragToMove())
-        }
-        row.addView(handle, margins())
-        actions += chip("▶ Chạy", 0xFF2E7D32.toInt()) { svc.startBot() }.also { row.addView(it, margins()) }
-        stopButton = chip("■", 0xFFC62828.toInt()) { svc.stopJob() }.also { row.addView(it, margins()) }
-        statusView.apply {
-            textSize = 11f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-            maxWidth = max(dp(60), svc.safeBand().width - dp(200))
-            setPadding(dp(6), dp(4), dp(6), dp(4))
-            background = rounded(0xE0263238.toInt())
-        }
-        row.addView(statusView, margins())
-        moreButton = chip("⋯", 0xFF455A64.toInt()) { setProbesShown(!probesShown) }.also { row.addView(it, margins()) }
-        row.addView(chip("✕", 0xFF455A64.toInt()) { svc.closeOverlay() }, margins())
+        row.addView(chip("×") { svc.closeOverlay() }.apply {
+            contentDescription = "Đóng bảng nổi và dừng bot"
+            setTextColor(svc.getColor(R.color.ui_danger))
+            background = rounded(svc.getColor(R.color.ui_background), true)
+        }, LinearLayout.LayoutParams(dp(28), dp(24)).apply { leftMargin = dp(8) })
+        statusView.setOnClickListener { setExpanded(!expanded) }
         root.addView(row)
-
-        // Các bài thử (dùng khi cài lên máy mới hoặc tra lỗi), ẩn sau nút ⋯.
-        probeRow.orientation = LinearLayout.HORIZONTAL
-        for ((label, action) in listOf(
-            "1 trận" to svc::startOneBattle,
-            "Nhận diện" to svc::startRecognize,
-            "Thành Tích" to svc::startReadRecords,
-            "Khung tướng" to svc::startReadHeroes,
-        )) {
-            actions += chip(label, 0xFF455A64.toInt()) { action() }.also { probeRow.addView(it, margins()) }
+        options.orientation = LinearLayout.VERTICAL
+        options.setPadding(dp(4), dp(4), dp(4), 0)
+        cheDo.orientation = RadioGroup.HORIZONTAL
+        for ((ma, ten) in listOf("ca_hai" to "Cả hai", "afk" to "Ải AFK")) {
+            val b = RadioButton(svc).apply { id = View.generateViewId(); text = ten; styleCheck(this) }
+            nutCheDo[ma] = b
+            cheDo.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
-        root.addView(probeRow)
-        logView.apply {
-            textSize = 10f
-            setTextColor(Color.WHITE)
-            setLines(LOG_LINES)
-            setPadding(dp(6), dp(3), dp(6), dp(3))
-            background = rounded(0xCC000000.toInt())
-        }
-        root.addView(logView, LinearLayout.LayoutParams(dp(300), LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            setMargins(dp(1), dp(1), dp(1), dp(1))
+        cheDo.setOnCheckedChangeListener { _, id -> if (!syncing) nutCheDo.entries.firstOrNull { it.value.id == id }?.let { svc.prefs.cheDo = it.key } }
+        options.addView(cheDo)
+        leoHo.apply { text = "Leo hộ"; styleCheck(this); setOnCheckedChangeListener { _, v -> if (!syncing) svc.prefs.leoHo = v } }
+        tuDong.apply { text = "Tự động"; styleCheck(this); setOnCheckedChangeListener { _, v -> if (!syncing) svc.prefs.tuDong = v } }
+        options.addView(line().apply {
+            addView(leoHo, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(tuDong, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         })
-        svc.onJobChanged = ::showState
-        showState(null)
-        setLogShown(false)
-        setProbesShown(false)
-        refreshOptions()
-    }
-
-    /** Áp dụng lại cài đặt từ màn hình chính (hiện/ẩn nút ⋯). */
-    fun refreshOptions() {
-        moreButton.visibility = if (svc.prefs.showProbes) View.VISIBLE else View.GONE
-        if (!svc.prefs.showProbes) setProbesShown(false)
-    }
-
-    private fun rounded(color: Int) = GradientDrawable().apply {
-        setColor(color)
-        cornerRadius = dp(6).toFloat()
-    }
-
-    private fun margins() = LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-    ).apply { setMargins(dp(1), dp(1), dp(1), dp(1)) }
-
-    private fun chip(label: String, color: Int, onClick: () -> Unit) = TextView(svc).apply {
-        text = label
-        textSize = 12f
-        setTextColor(Color.WHITE)
-        gravity = Gravity.CENTER
-        background = rounded(color)
-        setPadding(dp(8), dp(4), dp(8), dp(4))
-        setOnClickListener { onClick() }
-    }
-
-    private fun showState(running: String?) {
-        for (b in actions) {
-            b.isEnabled = running == null
-            b.alpha = if (running == null) 1f else 0.4f
+        // Trạng thái giữ sáng xem trong app; không thêm hàng chiếm chỗ trên game.
+        advancedButton = chip("Nâng cao ▾") { advancedShown = !advancedShown; updateExpansion() }
+        options.addView(advancedButton)
+        advanced.orientation = LinearLayout.VERTICAL
+        val probes = listOf("Leo 1 trận" to svc::startOneBattle, "Nhận diện" to svc::startRecognize,
+            "Thành Tích" to svc::startReadRecords, "Khung tướng" to svc::startReadHeroes)
+        for (pair in probes.chunked(2)) {
+            val r = line()
+            for ((label, action) in pair) {
+                val b = chip(label) { action() }.apply { background = rounded(svc.getColor(R.color.ui_background), true) }
+                actions.add(b)
+                r.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+            }
+            advanced.addView(r)
         }
-        stopButton.isEnabled = running != null
-        stopButton.alpha = if (running != null) 1f else 0.4f
+        logView.apply { textSize = 11f; setTextColor(ink); setLines(4); setPadding(dp(8), dp(8), dp(8), dp(8)); background = rounded(svc.getColor(R.color.ui_background), true); movementMethod = ScrollingMovementMethod() }
+        advanced.addView(logView)
+        options.addView(advanced)
+        root.addView(options)
+        svc.onJobChanged = ::showState
+        refreshOptions()
+        showState(null)
+        updateExpansion()
     }
-
-    private fun setLogShown(shown: Boolean) {
-        logShown = shown
-        logView.visibility = if (shown) View.VISIBLE else View.GONE
+    private fun line() = LinearLayout(svc).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    private fun rounded(color: Int, border: Boolean = false) = GradientDrawable().apply { setColor(color); cornerRadius = dp(8).toFloat(); if (border) setStroke(dp(1), svc.getColor(R.color.ui_border)) }
+    private fun chip(label: String, action: () -> Unit) = TextView(svc).apply {
+        text = label; textSize = 12f; setTextColor(ink); gravity = Gravity.CENTER
+        includeFontPadding = false
+        minHeight = dp(24); setPadding(dp(6), dp(2), dp(6), dp(2)); setOnClickListener { action() }
     }
-
-    private fun setProbesShown(shown: Boolean) {
-        probesShown = shown
-        probeRow.visibility = if (shown) View.VISIBLE else View.GONE
+    private fun styleCheck(b: CompoundButton) = b.apply {
+        textSize = 12f; setTextColor(ink); includeFontPadding = false
+        buttonDrawable?.let { original ->
+            buttonDrawable = object : InsetDrawable(original, 0) {
+                override fun getIntrinsicWidth() = dp(20)
+                override fun getIntrinsicHeight() = dp(20)
+            }
+        }
+        buttonTintList = ColorStateList.valueOf(accent)
+        minHeight = dp(26); minimumHeight = dp(26); setPadding(0, 0, 0, 0)
     }
-
+    fun refreshOptions() {
+        syncing = true
+        try {
+            // Chế độ chỉ Huyền Linh cũ vẫn chỉnh được trong app; không hiển thị nhầm thành Cả hai.
+            cheDo.check(nutCheDo[svc.prefs.cheDo]?.id ?: -1)
+            leoHo.isChecked = svc.prefs.leoHo
+            tuDong.isChecked = svc.prefs.tuDong
+        } finally { syncing = false }
+    }
+    private fun showState(name: String?) {
+        running = name != null
+        if (running) setExpanded(false)
+        runButton.text = if (running) "■ Dừng" else "▶ Chạy"
+        for (b in actions) { b.isEnabled = !running; b.alpha = if (running) 0.4f else 1f }
+        for (b in nutCheDo.values) { b.isEnabled = !running; b.alpha = if (running) 0.4f else 1f }
+        leoHo.isEnabled = !running
+    }
+    /** Chỉ giữ sáng trong lúc có tác vụ; tắt ngay cả khi coroutine chưa kết thúc hủy. */
+    fun setKeepingScreenOn(active: Boolean) {
+        val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        params.flags = if (active) params.flags or flag else params.flags and flag.inv()
+        if (root.isAttachedToWindow) wm.updateViewLayout(root, params)
+    }
+    private fun setExpanded(value: Boolean) { expanded = value; updateExpansion() }
+    private fun updateExpansion() {
+        params.width = minOf(dp(if (expanded) 280 else 260), svc.screenWidth() - dp(16))
+        options.visibility = if (expanded) View.VISIBLE else View.GONE
+        advanced.visibility = if (advancedShown) View.VISIBLE else View.GONE
+        expandButton.text = if (expanded) "⌃" else "⌄"
+        advancedButton.text = if (advancedShown) "Nâng cao ▴" else "Nâng cao ▾"
+        if (root.isAttachedToWindow) wm.updateViewLayout(root, params)
+    }
     fun show() {
         wm.addView(root, params)
-        AppLog.addListener(logListener)
-        BotStatus.addListener(statusListener)
-        logListener()
-        statusListener()
+        AppLog.addListener(logListener); BotStatus.addListener(statusListener)
+        logListener(); statusListener(); setKeepingScreenOn(false)
     }
-
-    /** Toàn bộ bảng nổi trên màn hình (null nếu đang ẩn). */
     fun boundsOnScreen(): Box? {
         if (!root.isAttachedToWindow || root.height == 0 || root.visibility != View.VISIBLE) return null
-        val loc = IntArray(2)
-        root.getLocationOnScreen(loc)
-        return Box(loc[0], loc[1], loc[0] + root.width, loc[1] + root.height)
+        val p = IntArray(2); root.getLocationOnScreen(p)
+        return Box(p[0], p[1], p[0] + root.width, p[1] + root.height)
     }
-
-    fun setVisible(visible: Boolean) {
-        root.visibility = if (visible) View.VISIBLE else View.GONE
-    }
-
-    fun hide() {
-        AppLog.removeListener(logListener)
-        BotStatus.removeListener(statusListener)
-        runCatching { wm.removeView(root) }
-    }
-
-    /** Kéo nút ≡ để di chuyển bảng nổi; chạm (không kéo) để mở/đóng nhật ký. */
+    fun setVisible(visible: Boolean) { root.visibility = if (visible) View.VISIBLE else View.GONE }
+    fun hide() { setKeepingScreenOn(false); AppLog.removeListener(logListener); BotStatus.removeListener(statusListener); runCatching { wm.removeView(root) } }
     private inner class DragToMove : View.OnTouchListener {
         private val slop = ViewConfiguration.get(svc).scaledTouchSlop
         private var downX = 0f
@@ -236,7 +218,7 @@ class Overlay(private val svc: BotService) {
                     }
                 }
                 MotionEvent.ACTION_UP -> if (!moved) {
-                    setLogShown(!logShown)
+                    setExpanded(!expanded)
                 } else {
                     svc.prefs.overlayX = params.x
                     svc.prefs.overlayY = params.y
