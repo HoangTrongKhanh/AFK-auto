@@ -235,6 +235,15 @@ class Leo(private val svc: BotService) {
                         }
                         "dai_dien_chon" -> xuLyDaiDienChon(img, k)
                         "dai_dien_thang" -> xuLyDaiDienThang(k)
+                        "huyen_linh_chon" -> {
+                            // Bảng thông tin ải mới (25/10): bấm Chiến Đấu để tiếp tục khi bảng đang mở.
+                            if (leoHo) ngoaiPhienLeoHo(img, "bảng chọn ải Huyền Linh")
+                            else if (hien != "huyen_linh") bam(k, "nut_quay_lai", 2500)
+                            else {
+                                AppLog.i("Bảng chọn ải Huyền Linh - bấm Chiến Đấu để tiếp tục.")
+                                bam(k, "hl_chon_chien_dau", 2500)
+                            }
+                        }
                         "man_afk" -> xuLyManAfk(img, k)
                         "doi_hinh" -> xuLyDoiHinh(img, k)
                         "thanh_tich" -> xuLyThanhTich(k)
@@ -605,7 +614,7 @@ class Leo(private val svc: BotService) {
     }
 
     private suspend fun xuLyThang(img: Mat, k: KetQua) {
-        if (ketQuaCu("THẮNG")) {
+        if (!daTinh && ketQuaCu("THẮNG")) {
             bam(k, "nut_quay_lai", 2500)
             return
         }
@@ -619,7 +628,9 @@ class Leo(private val svc: BotService) {
             sangAiMoi(cd.getValue(hien), tien?.second)
             if (cheDoChay == CheDoChay.MOT_TRAN) throw StopBot("Đã đánh xong 1 trận: THẮNG.")
         }
-        bam(k, "thang_chien_dau", 2500)             // đánh ải kế
+        // Đo 25/10: Huyền Linh có nút riêng ở màn THẮNG; màn cũ vẫn dùng Chiến Đấu.
+        // Màn thắng còn hiện sau lần bấm thì bấm lại, không coi kết quả vừa tính là trận cũ rồi quay lui.
+        bam(k, if ("thang_huyen_linh" in k.nut) "thang_huyen_linh" else "thang_chien_dau", 2500)
     }
 
     /** Chế độ c vừa thắng sang ải mới: thử lại từ đầu, đội vừa thắng giữ nguyên để đánh tiếp. Không tính đội đang dùng

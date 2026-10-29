@@ -17,7 +17,7 @@ const val CACH_BIET = 0.05
 private val MOC_MAN_AFK = 302 to 1243
 private val DAI_DUONG_AI = Box(0, 1020, 1600, 1110)
 private val MOC_THANG = 800 to 1655
-private val SO_TRUOC = Box(690, 1715, 800, 1790)
+private val SO_TRUOC = Box(665, 1715, 800, 1790)  // đủ 4 chữ số (25/10: 1109 → 1110)
 private val SO_SAU = Box(910, 1715, 1035, 1790)
 // Bảng "Chiến Đấu Tự Động Hoàn Tất": cùng dải "Tiến Trình Màn Chơi Đỉnh Cao A → B" như màn THẮNG, mốc là dòng tiêu đề.
 private val MOC_TU_DONG = 800 to 645

@@ -44,6 +44,28 @@
    "le": 80,
    "nguong": 0.8
   },
+  "hl_chon_tieu_de": {
+   "hop": [
+    510,
+    1180,
+    1060,
+    1235
+   ],
+   "neo": "duoi",
+   "le": 120,
+   "nguong": 0.8
+  },
+  "hl_chon_chien_dau": {
+   "hop": [
+    730,
+    2355,
+    1240,
+    2440
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
   "doi_hinh_thanh_tich": {
    "hop": [
     290,
@@ -259,6 +281,17 @@
     2360,
     1320,
     2450
+   ],
+   "neo": "duoi",
+   "le": 80,
+   "nguong": 0.8
+  },
+  "thang_huyen_linh": {
+   "hop": [
+    835,
+    2335,
+    1485,
+    2455
    ],
    "neo": "duoi",
    "le": 80,
@@ -610,6 +643,13 @@
    ]
   },
   {
+   "ten": "thang",
+   "can": [
+    "thang_da_tang",
+    "thang_huyen_linh"
+   ]
+  },
+  {
    "ten": "dang_danh",
    "can": [
     "danh_giay"
@@ -637,6 +677,13 @@
    ]
   },
   {
+   "ten": "huyen_linh_chon",
+   "can": [
+    "hl_chon_tieu_de",
+    "hl_chon_chien_dau"
+   ]
+  },
+  {
    "ten": "dai_dien_chon",
    "can": [
     "dd_doi_hinh_dich"
@@ -657,6 +704,9 @@
   }
  ],
  "nut_them": {
+  "huyen_linh_chon": [
+   "nut_quay_lai"
+  ],
   "man_afk": [
    "man_afk_chien_dau",
    "man_afk_chien_dau_ngang",
@@ -679,7 +729,9 @@
    "bai_loi_khuyen"
   ],
   "thang": [
-   "nut_quay_lai"
+   "nut_quay_lai",
+   "thang_chien_dau",
+   "thang_huyen_linh"
   ],
   "dai_dien_chon": [
    "dd_chon_chien_dau",

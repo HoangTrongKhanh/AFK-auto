@@ -26,7 +26,7 @@ MOC_MAN_AFK = (302, 1243)
 DAI_DUONG_AI = (0, 1020, 1600, 1110)             # dải số ải dưới đường ải; ải hiện tại nằm trong ô đỏ
 # Màn THẮNG (dời theo mẫu "thang_da_tang" ở (800, 1655)):
 MOC_THANG = (800, 1655)
-SO_TRUOC = (690, 1715, 800, 1790)                # "751" (màu kem)
+SO_TRUOC = (665, 1715, 800, 1790)                # màu kem; nới trái để đọc đủ 4 chữ số (25/10: 1109 → 1110)
 SO_SAU = (910, 1715, 1035, 1790)                 # "752" (màu xanh lá)
 # Bảng "Chiến Đấu Tự Động Hoàn Tất": cùng dải "Tiến Trình Màn Chơi Đỉnh Cao A → B" như màn THẮNG, mốc là dòng tiêu đề.
 MOC_TU_DONG = (800, 645)

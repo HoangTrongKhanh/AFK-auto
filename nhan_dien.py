@@ -49,6 +49,9 @@ MAU = {
     "man_afk_huyen_linh": Mau("tab_s7_man_afk", (228, 2060, 735, 2130), "duoi"),
     # Phần Thách Đấu Huyền Linh đã hết ải: chỉ còn 1 nút Chiến Đấu ngang, chữ ở giữa màn hình (15/10, ải 930).
     "man_afk_chien_dau_ngang": Mau("tab_s7_man_afk_mot_nut", (600, 2100, 990, 2180), "duoi"),
+    # Đo 25/10: bảng thông tin ải Huyền Linh có nút Chiến Đấu riêng ở đáy, cần nhận để tiếp tục khi bảng đang mở.
+    "hl_chon_tieu_de": Mau("tab_s7_huyen_linh_chon_ai", (510, 1180, 1060, 1235), "duoi", 120),
+    "hl_chon_chien_dau": Mau("tab_s7_huyen_linh_chon_ai", (730, 2355, 1240, 2440), "duoi"),
     # Màn đội hình (sau khi bấm Chiến Đấu / Thách Đấu Huyền Linh)
     "doi_hinh_thanh_tich": Mau("tab_s7_doi_hinh_man_afk", (290, 2320, 510, 2465), "duoi"),
     "doi_hinh_tu_dong": Mau("tab_s7_doi_hinh_man_afk", (560, 2340, 1010, 2420), "duoi"),
@@ -75,6 +78,9 @@ MAU = {
     "bai_thu_lai": Mau("tab_s7_ket_qua_bai_thu_lai", (960, 2370, 1290, 2475), "duoi"),
     "thang_da_tang": Mau("tab_s7_ket_qua_thang", (415, 1612, 1185, 1698), "giua", 200),
     "thang_chien_dau": Mau("tab_s7_ket_qua_thang", (900, 2360, 1320, 2450), "duoi"),
+    # Đo 25/10: màn THẮNG Huyền Linh đổi nút Chiến Đấu thành "Thách Đấu Huyền Linh Sinh Vật".
+    # Chỉ lấy chữ đứng yên, bỏ ảnh tướng bên trái và lực chiến thay đổi bên dưới.
+    "thang_huyen_linh": Mau("tab_s7_ket_qua_thang_huyen_linh", (835, 2335, 1485, 2455), "duoi"),
     "nut_quay_lai": Mau("tab_s7_ket_qua_bai_thu_lai", (40, 2340, 260, 2510), "duoi"),
     # Bảng "Chiến Đấu Tự Động Hoàn Tất / Đã hoàn thành màn xN" hiện khi tắt chuỗi Chiến Đấu Tự Động (13/10)
     "tu_dong_hoan_tat": Mau("tab_s7_tu_dong_hoan_tat", (300, 590, 1300, 700), "giua", 200),
@@ -133,11 +139,13 @@ MAN_HINH = [
     ("bai", ["bai_thu_lai"]),
     ("dai_dien_thang", ["dd_dai_dien", "dd_tiep_theo"]),
     ("thang", ["thang_da_tang", "thang_chien_dau"]),
+    ("thang", ["thang_da_tang", "thang_huyen_linh"]),
     # Đồng hồ "NNgiây" ở góc trên phải; cụm nút tốc độ có lúc bị chiêu cuối của tướng che nên không bắt buộc.
     ("dang_danh", ["danh_giay"]),
     ("dang_danh", ["tu_dong_chien_dau"]),
     ("doi_hinh", ["doi_hinh_thanh_tich", "doi_hinh_tu_dong", "doi_hinh_chien_dau"]),
     ("doi_hinh", ["doi_hinh_thanh_tich", "dd_doi_hinh_chien_dau"]),        # đội hình leo hộ (cờ dai_dien)
+    ("huyen_linh_chon", ["hl_chon_tieu_de", "hl_chon_chien_dau"]),
     ("dai_dien_chon", ["dd_doi_hinh_dich"]),
     # Theo tiêu đề "Màn AFK": khi một phần (Chiến Đấu hoặc Thách Đấu Huyền Linh) hết ải, game chỉ còn 1 nút ngang.
     ("man_afk", ["man_afk_tieu_de"]),
@@ -147,11 +155,12 @@ MAN_HINH = [
 XU_LY_TOI = ["xu_ly_ban_do", "xu_ly_man_afk"]     # mẫu vẫn dò khi màn hình tối (bị khóa)
 
 NUT_THEM = {
+    "huyen_linh_chon": ["nut_quay_lai"],
     "man_afk": ["man_afk_chien_dau", "man_afk_chien_dau_ngang", "man_afk_huyen_linh", "nut_quay_lai"],
     "doi_hinh": ["tieu_de_mua_giai", "tieu_de_huyen", "nut_quay_lai"],
     "thanh_tich": ["tt_mui_ten_phai", "tt_mui_ten_trai", "tt_o_loc_chu", "tt_nam_dam"],
     "bai": ["nut_quay_lai", "bai_loi_khuyen"],
-    "thang": ["nut_quay_lai"],
+    "thang": ["nut_quay_lai", "thang_chien_dau", "thang_huyen_linh"],
     "dai_dien_chon": ["dd_chon_chien_dau", "dd_chon_huyen_linh"],
     "dang_danh": ["danh_toc_do", "danh_tam_dung", "tu_dong_chien_dau", "nut_tu_dong_xu_ly"],
 }

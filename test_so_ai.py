@@ -45,6 +45,14 @@ class TestSoAi(unittest.TestCase):
     def test_tien_trinh_thang(self):
         self.assertEqual(self.d.tien_trinh_thang(self.anh("tab_s7_ket_qua_thang.png")), (751, 752))
 
+    def test_tien_trinh_thang_bon_chu_so(self):
+        """Màn thắng mới (25/10): số 1109 trước đây bị cắt mất chữ số đầu."""
+        img = self.anh("tab_s7_ket_qua_thang_huyen_linh.png")
+        for w in (1600, 1080, 800):
+            with self.subTest(rong=w):
+                nho = cv2.resize(img, (w, w * 8 // 5), interpolation=cv2.INTER_AREA)
+                self.assertEqual(self.d.tien_trinh_thang(nho), (1109, 1110))
+
     def test_tien_trinh_tu_dong(self):
         self.assertEqual(self.d.tien_trinh_tu_dong(self.anh("tab_s7_tu_dong_hoan_tat.png")), (217, 245))
         self.assertEqual(self.d.tien_trinh_tu_dong(self.anh("tab_s7_xu_ly_hoan_tat.png")), (420, 445))

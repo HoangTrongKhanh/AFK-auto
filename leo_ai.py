@@ -365,6 +365,17 @@ class LeoAi:
         log.info("Đang ở bản đồ thế giới - mở Màn AFK.")
         self.bam(k, "ban_do_nut_man_afk", cho=3.0)
 
+    def xu_ly_huyen_linh_chon(self, img, k):
+        """Bảng thông tin ải Huyền Linh (25/10): bấm Chiến Đấu để tiếp tục khi bảng đang mở."""
+        if self.a.leo_ho:
+            self.ngoai_phien_leo_ho(img, "bảng chọn ải Huyền Linh")
+            return
+        if self.hien != "huyen_linh":
+            self.bam(k, "nut_quay_lai", cho=2.5)
+            return
+        log.info("Bảng chọn ải Huyền Linh - bấm Chiến Đấu để tiếp tục.")
+        self.bam(k, "hl_chon_chien_dau", cho=2.5)
+
     def xu_ly_man_afk(self, img, k):
         if self.a.leo_ho:
             self.ngoai_phien_leo_ho(img, "Màn AFK")
@@ -582,7 +593,7 @@ class LeoAi:
         return True
 
     def xu_ly_thang(self, img, k):
-        if self.ket_qua_cu("THẮNG"):
+        if not self.da_tinh and self.ket_qua_cu("THẮNG"):
             self.bam(k, "nut_quay_lai", cho=2.5)
             return
         if not self.da_tinh:
@@ -598,7 +609,10 @@ class LeoAi:
             self.sang_ai_moi(self.cd[self.hien], tt[1] if tt else None)
             if self.a.mot_tran:
                 raise Dung("Đã đánh xong 1 trận (--mot-tran).")
-        self.bam(k, "thang_chien_dau", cho=2.5)     # đánh ải kế
+        # Đo 25/10: Huyền Linh có nút riêng ở màn THẮNG; màn cũ vẫn dùng Chiến Đấu.
+        # Màn thắng còn hiện sau lần bấm thì bấm lại, không coi kết quả vừa tính là trận cũ rồi quay lui.
+        nut = "thang_huyen_linh" if "thang_huyen_linh" in k.nut else "thang_chien_dau"
+        self.bam(k, nut, cho=2.5)     # vào đội hình ải kế
 
     def xu_ly_dai_dien_thang(self, img, k):
         """Leo hộ thắng: màn THẮNG có dải "Đại Diện Tác Chiến" và nút Tiếp Theo (mở bảng chọn ải kế), không có tiến

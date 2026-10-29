@@ -17,6 +17,8 @@ tab_s7_ket_qua_bai_het_gio.png bai
 tab_s7_ket_qua_bai_khong_loi_khuyen.png bai
 tab_s7_ket_qua_bai_thu_lai.png bai
 tab_s7_ket_qua_thang.png thang
+tab_s7_ket_qua_thang_huyen_linh.png thang
+tab_s7_huyen_linh_chon_ai.png huyen_linh_chon
 tab_s7_man_afk.png man_afk
 tab_s7_man_afk_bi_game_booster_khoa.png khoa
 tab_s7_man_afk_sau_khi_nhan_thuong.png man_afk

@@ -45,6 +45,21 @@ class TestNhanDien(unittest.TestCase):
         dung |= {t for ds in NUT_THEM.values() for t in ds}
         self.assertEqual(set(MAU) - dung, set())
 
+    def test_nut_di_tiep_man_thang(self):
+        """Đo 25/10: nút Huyền Linh thay Chiến Đấu; phải nhận đúng nút để vào ải kế, cả khi thu nhỏ."""
+        for ten, nut in (("tab_s7_ket_qua_thang.png", "thang_chien_dau"),
+                         ("tab_s7_ket_qua_thang_huyen_linh.png", "thang_huyen_linh")):
+            img = cv2.imread(str(SAMPLES / ten))
+            for w in (1600, 1080, 800):
+                with self.subTest(anh=ten, rong=w):
+                    nho = cv2.resize(img, (w, w * 8 // 5), interpolation=cv2.INTER_AREA)
+                    k = self.nd.nhan_dien(nho)
+                    self.assertEqual(k.man_hinh, "thang")
+                    self.assertIn(nut, k.nut)
+                    x, y = k.nut[nut]
+                    self.assertTrue(680 * w / 1600 < x < 1575 * w / 1600)
+                    self.assertTrue(2320 * w / 1600 < y < 2520 * w / 1600)
+
     def test_anh_thu_nho_van_nhan_ra(self):
         """Cùng tỉ lệ khung hình nhưng độ phân giải thấp hơn (máy 800x1280): vẫn nhận ra như cũ."""
         for f, man, _ in doc_nhan()[:12]:

@@ -103,6 +103,66 @@ class AdbGia:
         self.bam.append((x, y))
 
 
+class TestThang(unittest.TestCase):
+    def test_nut_huyen_linh_va_bang_thong_tin_ai(self):
+        b = bot()
+        b.adb = AdbGia()
+        b.tran_che_do = b.hien
+        img = cv2.imread(str(SAMPLES / "tab_s7_ket_qua_thang_huyen_linh.png"))
+        thang = b.nd.nhan_dien(img)
+        chon_img = cv2.imread(str(SAMPLES / "tab_s7_huyen_linh_chon_ai.png"))
+        chon = b.nd.nhan_dien(chon_img)
+        self.assertEqual(chon.man_hinh, "huyen_linh_chon")
+        with mock.patch("leo_ai.time.sleep"):
+            b.xu_ly_thang(img, thang)
+            b.xu_ly_huyen_linh_chon(chon_img, chon)
+        self.assertEqual(b.adb.bam, [thang.nut["thang_huyen_linh"], chon.nut["hl_chon_chien_dau"]])
+        self.assertEqual(b.tk["thang"], 1)
+
+    def test_bang_huyen_linh_khi_dang_leo_afk_thi_quay_lai(self):
+        b = bot(che_do="afk")
+        b.adb = AdbGia()
+        img = cv2.imread(str(SAMPLES / "tab_s7_huyen_linh_chon_ai.png"))
+        k = b.nd.nhan_dien(img)
+        with mock.patch("leo_ai.time.sleep"):
+            b.xu_ly_huyen_linh_chon(img, k)
+        self.assertEqual(b.adb.bam, [k.nut["nut_quay_lai"]])
+
+    def test_di_tiep_bang_nut_cu_va_nut_huyen_linh(self):
+        """Màn thắng còn hiện sau lần bấm: thử lại nút đi tiếp, chỉ tính thắng một lần và không bấm quay lui."""
+        for ten, nut, ai in (("tab_s7_ket_qua_thang.png", "thang_chien_dau", 752),
+                             ("tab_s7_ket_qua_thang_huyen_linh.png", "thang_huyen_linh", 1110)):
+            with self.subTest(anh=ten):
+                b = bot()
+                b.adb = AdbGia()
+                b.tran_che_do = b.hien
+                cd = b.cd[b.hien]
+                cd.da_thu = ["đội cũ"]
+                b.cd["afk"].thua = 2
+                img = cv2.imread(str(SAMPLES / ten))
+                k = b.nd.nhan_dien(img)
+                with mock.patch("leo_ai.time.sleep"):
+                    b.xu_ly_thang(img, k)
+                    b.xu_ly_thang(img, k)
+                self.assertEqual(b.adb.bam, [k.nut[nut]] * 2)
+                self.assertEqual(b.tk["thang"], 1)
+                self.assertEqual(b.tk["tran"], 1)
+                self.assertEqual(b.tien_trinh, ai)
+                self.assertEqual(cd.da_thu, [])
+                self.assertTrue(cd.mang_sang)
+                self.assertEqual(b.cd["afk"].thua, 2)
+
+    def test_mot_tran_dung_o_man_thang_moi(self):
+        b = bot(mot_tran=True)
+        b.adb = AdbGia()
+        b.tran_che_do = b.hien
+        img = cv2.imread(str(SAMPLES / "tab_s7_ket_qua_thang_huyen_linh.png"))
+        with self.assertRaises(Dung):
+            b.xu_ly_thang(img, b.nd.nhan_dien(img))
+        self.assertEqual(b.tk["thang"], 1)
+        self.assertEqual(b.adb.bam, [])
+
+
 class TestChepThu(unittest.TestCase):
     def setUp(self):
         self.img = cv2.imread(str(SAMPLES / "tab_s7_doi_hinh_man_afk.png"))     # đội bạn 338.21M
