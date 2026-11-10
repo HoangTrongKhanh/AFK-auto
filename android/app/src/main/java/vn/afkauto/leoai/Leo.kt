@@ -1,6 +1,9 @@
 package vn.afkauto.leoai
 
 import android.os.BatteryManager
+import android.util.AtomicFile
+import java.util.UUID
+import vn.afkauto.leoai.vision.trongDoi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -9,11 +12,13 @@ import org.json.JSONObject
 import org.opencv.core.Core
 import org.opencv.core.Mat
 import org.opencv.imgcodecs.Imgcodecs
+import org.opencv.core.Size
+import org.opencv.imgproc.Imgproc
+import vn.afkauto.leoai.vision.nutHoiTruong
 import vn.afkauto.leoai.vision.DocDanhSach
 import vn.afkauto.leoai.vision.DocSoAi
 import vn.afkauto.leoai.vision.DocThanhTich
 import vn.afkauto.leoai.vision.DoiThanhTich
-import vn.afkauto.leoai.vision.KHE_X
 import vn.afkauto.leoai.vision.KetQua
 import vn.afkauto.leoai.vision.REF_H
 import vn.afkauto.leoai.vision.REF_W
@@ -25,7 +30,6 @@ import vn.afkauto.leoai.vision.daiTuong
 import vn.afkauto.leoai.vision.decodeImage
 import vn.afkauto.leoai.vision.matTheDanhSach
 import vn.afkauto.leoai.vision.timOKhoa
-import vn.afkauto.leoai.vision.vungDanhSach
 import java.io.File
 
 // Chuyển từ leo_ai.py (bản máy tính đã chạy thật 12/10/2026: Màn AFK 754 → 765, Huyền Linh 765 → 769).
@@ -48,10 +52,7 @@ private const val O_LOC_TRAI = 387           // ô tích nằm bên trái dòng 
 private const val O_LOC_DUOI = 30            // bấm mép dưới ô tích: băng "18+" ở góc trên trái che nửa trên và chặn lần bấm
 private const val THIEU_NUT_TOI_DA = 3       // Màn AFK thiếu nút của một phần bấy nhiêu lần liền thì coi phần đó đã hết ải
 private const val DOI_LUC_TOI_DA = 8         // sau khi chép: đọc lực chiến đội tối đa bấy nhiêu lần chờ con số cập nhật
-// Đọc danh sách tướng ở màn đội hình (doc_tuong_cua_toi.py): vuốt chậm ~nửa hàng thẻ ở khe giữa 2 cột (máy gốc).
-private const val VUOT_TU = 2150
-private const val VUOT_DEN = 2000
-private const val VUOT_TOI_DA = 60
+// Kết quả đọc Hội Trường Cộng Hưởng, dùng khi so khung với bản ghi Thành Tích.
 private const val TEP_TUONG = "tuong_cua_toi.json"
 private const val THU_MUC_MAT = "tuong_cua_toi"
 private const val UNG_VIEN_TOI_THIEU = 0.45      // thẻ ứng viên của một tướng: khớp mặt ít nhất bấy nhiêu
@@ -106,7 +107,13 @@ class Leo(private val svc: BotService) {
     private val nd get() = svc.nd
     private val tt by lazy { DocThanhTich(svc.nd) }
     private val so by lazy { DocSoAi(svc.nd) }
-    private val thuVien by lazy { ThuVienTuong.load { name -> svc.assets.open(name).use { it.readBytes() } } }
+    private var thuVienLoaded: ThuVienTuong? = null
+    private val thuVien: ThuVienTuong get() = thuVienLoaded ?: run {
+        val read = { name: String -> svc.assets.open(name).use { it.readBytes() } }
+        ThuVienTuong.load(read).also { KhungTuong.kho(svc).current().apply(it, read);thuVienLoaded=it }
+    }
+    private var profileId: String? = null
+    private val heroDir get() = KhungTuong.duLieu(svc)
     private var soKhung: SoKhung? = null
     private var daThuDocTuong = false               // đã tự đọc danh sách tướng trong lần chạy này
     private val prefs get() = svc.prefs
@@ -487,13 +494,11 @@ class Leo(private val svc: BotService) {
             bam(k, "nut_quay_lai", 2500)            // về Màn AFK để đổi chế độ hoặc dừng
             return
         }
-        // Chưa đọc khung tướng của bạn: đọc một lần ở màn đội hình (1-2 phút, không đánh) để so khung khi chọn đội.
+        // Dữ liệu khung mới đọc riêng từ Hội Trường; không rời trận để đọc danh sách nhỏ ở màn đội hình.
         if (cheDoChay == CheDoChay.LEO && prefs.thieuKhung != "thu" && soKhung == null && !daThuDocTuong && !leoHo) {
             daThuDocTuong = true
-            AppLog.i("Chưa có khung tướng của bạn - đọc danh sách tướng trước (một lần).")
-            docDanhSachTuong()
-            soKhung = napSoKhung()
-            return
+            AppLog.i("Chưa có dữ liệu khung tự đọc từ Hội Trường.")
+            AppLog.i("Mở Khung tướng trên bảng nổi để đọc từ Hội Trường Cộng Hưởng khi thuận tiện; tạm dùng dữ liệu đánh dấu tay.")
         }
         if (c.doi == null && !c.canDoi && cpu { tt.doiTrong(img) }) {
             AppLog.i("Đội trống (chưa có tướng nào) - chép đội từ Thành Tích.")
@@ -992,22 +997,23 @@ class Leo(private val svc: BotService) {
     /** Khung tướng của bạn đã đọc (files/tuong_cua_toi.json + ảnh mặt); null nếu chưa có. */
     private fun napSoKhung(): SoKhung? {
         apDungXacNhan()
-        val f = File(svc.filesDir, TEP_TUONG)
-        val tay = KhungTuong.docTay(svc.filesDir)
+        val f = File(heroDir, TEP_TUONG)
+        val tay = KhungTuong.docTay(heroDir)
         if (!f.exists() && tay.isEmpty()) {
-            AppLog.i("Chưa có khung tướng của bạn: bot sẽ đọc danh sách tướng ở màn đội hình.")
+            AppLog.i("Chưa có khung tướng của bạn: mở Hội Trường Cộng Hưởng rồi chọn Khung tướng trên bảng nổi.")
             return null
         }
         return runCatching {
-            val arr = if (f.exists()) JSONArray(f.readText()) else JSONArray()
+            val arr = if (f.exists()) JSONArray(String(AtomicFile(f).readFully(), Charsets.UTF_8)) else JSONArray()
             val cuaToi = mutableMapOf<String, Int>()
             val mat = mutableListOf<Pair<Mat, Int>>()
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
-                val k = o.getInt("khung")
+                val k = o.optInt("khung", KhungTuong.CHUA_RO)
+                if (k !in 0..1 || o.optBoolean("trong_doi")) continue
                 // Thẻ tướng đang trong đội bị game phủ xanh: khung đọc không tin được, bỏ qua (không coi là thiếu khung).
                 if (o.has("ten") && !o.optBoolean("trong_doi")) o.getString("ten").let { cuaToi[it] = maxOf(cuaToi[it] ?: 0, k) }
-                if (o.has("mat")) mat.add(decodeImage(File(svc.filesDir, o.getString("mat")).readBytes()) to k)
+                if (o.has("mat")) mat.add(decodeImage(File(heroDir, o.getString("mat")).readBytes()) to k)
             }
             // Khung bạn đánh dấu luôn thay kết quả tự đọc (chưa có tướng: coi như không khung, game cũng ẩn bản ghi đó).
             for ((t, k) in tay) cuaToi[t] = if (k == KhungTuong.CO) 1 else 0
@@ -1021,20 +1027,31 @@ class Leo(private val svc: BotService) {
         }
     }
 
-    /** Bài thử / đọc lại sau khi nâng phẩm tướng: đọc khung tướng của bạn ở danh sách tướng của màn đội hình. */
+    /** Bài thử / đọc lại sau khi nâng phẩm tướng: đọc khung tướng của bạn trong Hội Trường Cộng Hưởng. */
     private val daApDung = mutableSetOf<String>()
 
-    /** Thẻ bạn đã xác nhận ở màn hình app (đúng là tướng X, khung K): thêm mặt thẻ vào thư viện và viền thẻ vào bước xếp
-     *  khung, để lần đọc danh sách sau nhận đúng ngay. Mỗi tệp chỉ thêm một lần (theo thời gian sửa tệp). */
+    /** Thêm ảnh mặt đã xác nhận; chỉ học viền khi có khung tay 0/1 và thẻ không phủ xanh.
+     *  Nhãn khung tự đọc trong xac_nhan.json không phải nhãn học. */
     private fun apDungXacNhan() {
-        for ((ten, xn) in KhungTuong.docXacNhan(svc.filesDir)) {
-            val f = File(svc.filesDir, xn.anh)
-            val khoa = "$ten|${f.lastModified()}|${xn.khung}"
+        val profile = KhungTuong.hoSo(svc).current()
+        if (profileId != profile.id) {
+            soKhung?.release(); soKhung = null; daThuDocTuong = false; daApDung.clear(); profileId = profile.id
+        }
+        val active = KhungTuong.kho(svc).current()
+        if (thuVienLoaded != null && thuVienLoaded?.phienBan != active.version) {
+            soKhung?.release();soKhung=null;thuVienLoaded?.release();thuVienLoaded=null
+        }
+        if (thuVien.engineV2 != null) return // Chỉ dùng mẫu thuộc phiên bản đã duyệt, không học viền tự động.
+        val tay = KhungTuong.docTay(heroDir)
+        for ((ten, xn) in KhungTuong.docXacNhan(heroDir)) {
+            val khungTay = tay[ten]?.takeIf { it == KhungTuong.CO || it == KhungTuong.KHONG }
+            val f = File(heroDir, xn.anh)
+            val khoa = "$ten|${f.lastModified()}|$khungTay"
             if (!f.exists() || khoa in daApDung) continue
             runCatching {
                 val anh = decodeImage(f.readBytes())
                 thuVien.themMat(ten, matTheDanhSach(anh))
-                if (xn.khung == KhungTuong.CO || xn.khung == KhungTuong.KHONG) thuVien.themVien(dacTrungVien(anh), xn.khung)
+                if (khungTay != null && !trongDoi(anh)) thuVien.themVien(dacTrungVien(anh), khungTay)
                 anh.release()
                 daApDung.add(khoa)
             }.onFailure { AppLog.i("Không dùng được thẻ xác nhận của $ten: ${it.message}") }
@@ -1044,8 +1061,8 @@ class Leo(private val svc: BotService) {
     /** Lưu thẻ ứng viên của từng tướng quan trọng (tối đa 3 thẻ giống nhất, thẻ đã gán tên đứng đầu) để bạn xác nhận ở
      *  màn hình app. */
     private fun luuUngVien(ds: List<vn.afkauto.leoai.vision.TuongCuaToi>) {
-        val thuMuc = File(svc.filesDir, KhungTuong.THU_MUC_UNG_VIEN).apply { deleteRecursively(); mkdirs() }
-        val diem = ds.map { thuVien.diem(it.mat).associate { (d, t) -> t to d } }
+        val thuMuc = File(heroDir, KhungTuong.THU_MUC_UNG_VIEN).apply { deleteRecursively(); mkdirs() }
+        val diem = ds.map { t -> t.dsDiem.ifEmpty { thuVien.diem(t.mat) }.associate { (d, name) -> name to d } }
         val out = mutableMapOf<String, List<KhungTuong.UngVien>>()
         for (q in KhungTuong.quanTrong(svc)) {
             val chon = ds.indices.filter { (diem[it][q.ten] ?: 0.0) >= UNG_VIEN_TOI_THIEU }
@@ -1054,113 +1071,196 @@ class Leo(private val svc: BotService) {
             out[q.ten] = chon.mapIndexed { j, i ->
                 val ten = "${KhungTuong.THU_MUC_UNG_VIEN}/${q.ten}_$j.png"
                 Imgcodecs.imwrite(File(thuMuc.parentFile, ten).path, ds[i].anh)
-                KhungTuong.UngVien(ten, ds[i].khung, diem[i][q.ten] ?: 0.0, ds[i].trongDoi)
+                val face = "${KhungTuong.THU_MUC_UNG_VIEN}/${q.ten}_${j}_mat.png"
+                Imgcodecs.imwrite(File(thuMuc.parentFile, face).path, ds[i].mat)
+                KhungTuong.UngVien(ten, ds[i].khung, diem[i][q.ten] ?: 0.0, ds[i].trongDoi, face.takeIf { ds[i].chatLuong?.dayDu==true }, ds[i].nguon)
             }
         }
-        KhungTuong.ghiUngVien(svc.filesDir, out)
+        KhungTuong.ghiUngVien(heroDir, out)
+    }
+
+    suspend fun sanSangDoc(img:Mat,k:KetQua):Boolean {
+        if(k.manHinh=="khoa") { xuLyKhoa(img);return false }
+        if(k.manHinh=="nghi" && "nghi_nhan_tiep_tuc" in k.nut) {bam(k,"nghi_nhan_tiep_tuc",2000);return false}
+        return k.manHinh in listOf("hoi_truong","doi_hinh") || cpu { nd.nutHoiTruong(img)!=null }
     }
 
     suspend fun docTuong(): Boolean {
         val ok = docDanhSachTuong()
-        if (ok) soKhung = napSoKhung()
+        if (ok) { soKhung?.release(); soKhung=null; soKhung = napSoKhung() }
         return ok
     }
 
-    /** Mở màn đội hình (nếu đang ở Màn AFK, chưa đánh), về đầu danh sách tướng rồi vuốt dần xuống tới hết, đọc khung và nhận
-     *  tướng của từng thẻ, lưu vào files/tuong_cua_toi.json. Vuốt ở khe giữa 2 cột thẻ để không kéo nhầm tướng vào đội, và
-     *  so lực chiến đội sau mỗi lần vuốt: đổi là dừng ngay. Trả về true nếu đọc xong. */
+    /** Luồng Hội Trường đã thử trên PC. Không chạm nút nâng cấp, chỉ điều hướng và cuộn danh sách. */
     private suspend fun docDanhSachTuong(): Boolean {
-        trangThai("đọc khung tướng")
+        val readStarted=now()
+        val profile = KhungTuong.hoSo(svc).current()
+        val dataDir = profile.dir
+        trangThai("đọc khung · Hội Trường")
         cpu { apDungXacNhan() }
-        var (img, k) = chup()
-        val nutAfk = nutCheDo(k, "afk")
-        if (k.manHinh == "man_afk" && nutAfk != null) {
-            AppLog.i("Mở màn đội hình (chưa đánh).")
+        suspend fun capture():Pair<Mat,KetQua> {
+            repeat(5) {
+                val pair=chup()
+                if(pair.second.manHinh=="khoa" || pair.second.manHinh=="nghi" && "nghi_nhan_tiep_tuc" in pair.second.nut) {
+                    try { sanSangDoc(pair.first,pair.second) } finally { pair.first.release() }
+                } else return pair
+            }
+            throw StopBot("Chưa mở được màn game để đọc tướng. Giữ dữ liệu cũ.")
+        }
+        var (img,k)=capture()
+        if(k.manHinh=="doi_hinh" && "nut_quay_lai" in k.nut) {
+            img.release(); bam(k,"nut_quay_lai",1500)
+            val r=capture();img=r.first;k=r.second
+        }
+        if(k.manHinh!="hoi_truong") {
+            val button=cpu{nd.nutHoiTruong(img)}
             img.release()
-            bam(k, nutAfk, 1500)
-            for (lan in 0 until 8) {
-                val r = chup(); img = r.first; k = r.second
-                if (k.manHinh == "doi_hinh") break
+            if(button==null) throw StopBot("Mở Hội Trường Cộng Hưởng hoặc bản đồ/Màn AFK có nút Hội Trường rồi đọc lại.")
+            svc.tap(button.first,button.second)
+            var opened=false
+            for(i in 1..12) {
+                delay(1000)
+                val r=capture();img=r.first;k=r.second
+                if(k.manHinh=="hoi_truong") {opened=true;break}
                 img.release()
-                delay(1500)
             }
+            if(!opened) throw StopBot("Chưa mở được Hội Trường Cộng Hưởng. Giữ nguyên khung tướng cũ.")
         }
-        if (k.manHinh != "doi_hinh") {
+        val nhan=decodeImage(svc.assets.open("vi/ht_cap.png").use{it.readBytes()},Imgcodecs.IMREAD_GRAYSCALE)
+        val doc=DocDanhSach(thuVien,nhan)
+        val h=img.rows();val scale=img.cols().toDouble()/REF_W
+        fun region(im:Mat):Mat {
+            val roi=im.submat((1000*scale).toInt(),(h-490*scale).toInt(),(130*scale).toInt(),(1450*scale).toInt())
+            val out=Mat();Imgproc.resize(roi,out,Size(132.0,100.0),0.0,0.0,Imgproc.INTER_AREA);roi.release();return out
+        }
+        fun difference(a:Mat,b:Mat):Double {
+            val d=Mat();Core.absdiff(a,b,d);val m=Core.mean(d);d.release()
+            return (m.`val`[0]+m.`val`[1]+m.`val`[2])/3
+        }
+        val session = File(svc.getExternalFilesDir("vision-sessions"), "phien-${System.currentTimeMillis()}").apply { mkdirs() }
+        fun fileHash(name:String):String? = File(dataDir,name).takeIf{it.exists()}?.let{vn.afkauto.leoai.vision.sha256(it.readBytes())}
+        val accepted = JSONArray()
+        val proof = JSONObject().put("profile_id",profile.id).put("profile_name",profile.ten).put("version",thuVien.phienBan).put("expected",svc.expectedHeroes?:JSONObject.NULL).put("previous_result_sha256",fileHash(TEP_TUONG)?:JSONObject.NULL).put("manual_before_sha256",fileHash(KhungTuong.TEP_TAY)?:JSONObject.NULL)
+        var previousGrid = emptyList<Mat>()
+        var firstShort: List<String>? = null
+        var short = false
+        fun shortProof(im:Mat,top:Boolean):List<String>? {
+            val expected = svc.expectedHeroes ?: return null
+            if(!top)return null
+            val cs=vn.afkauto.leoai.vision.catTheHoiTruongV2(im,nhan,requireNotNull(thuVien.mocDau))
+            return try { vn.afkauto.leoai.vision.xacMinhDanhSachNgan(cs,expected,top) }
+                finally { cs.forEach{it.release()} }
+        }
+        suspend fun accept(im:Mat) {
+            cpu {
+                val path="%02d.png".format(accepted.length()+1)
+                val encoded=org.opencv.core.MatOfByte()
+                try {
+                    check(Imgcodecs.imencode(".png",im,encoded));val bytes=encoded.toArray();File(session,path).writeBytes(bytes)
+                    doc.them(im,vn.afkauto.leoai.vision.sha256(bytes))
+                    if(svc.expectedHeroes!=null && doc.tuong.size>requireNotNull(svc.expectedHeroes))throw StopBot("Đã thấy ${doc.tuong.size} thẻ, vượt ${svc.expectedHeroes} tướng đối chiếu. Giữ dữ liệu cũ.")
+                } finally {encoded.release()}
+                val grid=doc.lastGridFaces
+                if(previousGrid.isNotEmpty() && grid.isNotEmpty() && previousGrid.none{old -> grid.any{vn.afkauto.leoai.vision.giongMat(old,it)>=.85}})
+                    throw StopBot("Hai ảnh liên tiếp không có thẻ lưới chung; chưa xác nhận đọc đủ. Giữ dữ liệu cũ.")
+                previousGrid.forEach{it.release()};previousGrid=grid.map{it.clone()};accepted.put(path)
+            }
+            AppLog.i("Đọc Hội Trường: ảnh ${accepted.length()}, ${doc.tuong.size} thẻ · ${thuVien.phienBan}.")
+        }
+        suspend fun scroll(direction:Int,distance:Int=300) {
             img.release()
-            AppLog.i("Đọc khung tướng: cần mở màn đội hình (hoặc Màn AFK) trước.")
-            return false
+            val ya=h-800*scale;val yb=ya-distance*scale
+            svc.swipe((800*scale).toInt(),(if(direction==1)yb else ya).toInt(),(800*scale).toInt(),(if(direction==1)ya else yb).toInt(),if(distance==600)700 else 1000)
+            delay(1100)
+            val r=capture();img=r.first;k=r.second
+            if(k.manHinh!="hoi_truong")throw StopBot("Đã rời Hội Trường/game bị khóa. Giữ nguyên dữ liệu khung cũ.")
         }
-        val luc = cpu { tt.lucDoi(img) }
-        val w = img.cols()
-        val h = img.rows()
-        val s = w.toDouble() / REF_W
-        val x = (KHE_X * s).toInt()
-        val ya = h - ((REF_H - VUOT_TU) * s).toInt()
-        val yb = h - ((REF_H - VUOT_DEN) * s).toInt()
-        suspend fun kiemTra(im: Mat, kk: KetQua, lan: String) {
-            val moi = if (kk.manHinh == "doi_hinh") cpu { tt.lucDoi(im) } else null
-            if (kk.manHinh != "doi_hinh" || (luc != null && moi != null && moi != luc)) {
-                im.release()
-                throw StopBot("Đọc khung tướng: sau lần vuốt $lan màn hình / lực chiến đội đã đổi ($luc -> $moi). Kiểm tra lại đội.")
-            }
+        try {
+            // Về đầu bằng mốc nhận diện, không dùng riêng việc đứng yên để suy ra danh sách ngắn.
+            var old=region(img);var stable=0;var reachedTop=false
+            try {
+                for(i in 1..60) {
+                    if("ht_dau" in k.nut){reachedTop=true;break}
+                    scroll(1,600);val current=region(img);val delta=difference(old,current);old.release();old=current
+                    stable=if(delta<2)stable+1 else 0
+                    if(stable>=2)break
+                }
+            } finally {old.release()}
+            if(!reachedTop)throw StopBot("Chưa xác nhận được đầu Hội Trường. Giữ dữ liệu khung cũ.")
+            firstShort=cpu{shortProof(img,"ht_dau" in k.nut)}
+            accept(img)
+            old=region(img);stable=0;var moved=false;var reachedEnd=false
+            try {
+                for(i in 1..60) {
+                    scroll(-1);val current=region(img);val delta=difference(old,current);old.release();old=current
+                    if(delta>=2)accept(img)
+                    stable=if(delta<2)stable+1 else 0;moved=moved || delta>=2
+                    if(stable>=2){
+                        if(!moved){val now=cpu{shortProof(img,"ht_dau" in k.nut)};if(now==null || firstShort==null || now!=firstShort)throw StopBot("Danh sách không phản hồi cuộn. Cần số tướng sở hữu và đủ ảnh thẻ để xác nhận danh sách ngắn.");short=true}
+                        reachedEnd=true;break
+                    }
+                }
+            } finally {old.release()}
+            if(!reachedEnd)throw StopBot("Chưa tới cuối sau 60 lần cuộn. Giữ dữ liệu cũ.")
+            val end=region(img)
+            try {
+                scroll(1);val back=region(img);val backDelta=try{difference(end,back)}finally{back.release()}
+                if(short){val now=cpu{shortProof(img,"ht_dau" in k.nut)};if(backDelta>=2 || now!=firstShort)throw StopBot("Chưa xác minh được danh sách ngắn ở chiều ngược. Giữ dữ liệu cũ.")}
+                else {
+                    if(backDelta<2)throw StopBot("Cuộn ngược không phản hồi; chưa xác minh cuối danh sách. Giữ dữ liệu cũ.")
+                    var returned=false
+                    for(i in 1..4){scroll(-1);val now=region(img);val delta=try{difference(end,now)}finally{now.release()};if(delta<2){returned=true;break}}
+                    if(!returned)throw StopBot("Chưa quay lại được ảnh cuối sau kiểm tra. Giữ dữ liệu cũ.")
+                }
+            } finally {end.release()}
+            if(svc.expectedHeroes!=null && doc.tuong.size!=svc.expectedHeroes)throw StopBot("Đọc được ${doc.tuong.size} thẻ, khác ${svc.expectedHeroes} tướng đối chiếu. Giữ dữ liệu cũ.")
+            proof.put("verified",true).put("short",short).put("pages",accepted).put("count",doc.tuong.size)
+            File(session,"session.json").writeText(proof.toString(2))
+        } catch(e:Exception) {
+            doc.tuong.forEach{it.anh.release();it.mat.release()}
+            throw e
+        } finally {
+            previousGrid.forEach{it.release()};doc.lastGridFaces.forEach{it.release()};img.release();nhan.release()
+            if(!proof.optBoolean("verified"))File(session,"session.json").writeText(proof.put("verified",false).put("pages",accepted).put("current_result_sha256",fileHash(TEP_TUONG)?:JSONObject.NULL).put("manual_after_sha256",fileHash(KhungTuong.TEP_TAY)?:JSONObject.NULL).toString(2))
         }
-        fun khac(a: Mat, b: Mat): Double {
-            val d = Mat()
-            Core.absdiff(a, b, d)
-            val m = Core.mean(d)
-            d.release()
-            return (m.`val`[0] + m.`val`[1] + m.`val`[2]) / 3
-        }
-        // Về đầu danh sách: vuốt ngược tới khi danh sách đứng yên.
-        var cu = cpu { vungDanhSach(img) }
-        img.release()
-        for (lan in 1..VUOT_TOI_DA) {
-            svc.swipe(x, yb, x, ya, 250)
-            delay(1200)
-            val (im, kk) = chup()
-            kiemTra(im, kk, "về đầu $lan")
-            val moi = cpu { vungDanhSach(im) }
-            im.release()
-            val dung = khac(moi, cu) < 2.0
-            cu.release()
-            cu = moi
-            if (dung) break
-        }
-        val doc = DocDanhSach(thuVien)
-        run {
-            val (im, _) = chup()
-            cpu { doc.them(im) }
-            im.release()
-        }
-        for (lan in 1..VUOT_TOI_DA) {
-            svc.swipe(x, ya, x, yb, 1000)
-            delay(1600)                             // chờ danh sách trôi hết rồi mới chụp
-            val (im, kk) = chup()
-            kiemTra(im, kk, "$lan")
-            val moi = cpu { vungDanhSach(im) }
-            val het = khac(moi, cu) < 2.0           // hết danh sách: ảnh không đổi
-            cu.release()
-            cu = moi
-            if (!het) cpu { doc.them(im) }
-            im.release()
-            if (het) break
-        }
-        cu.release()
         val ds = cpu { doc.xong() }
-        val thuMuc = File(svc.filesDir, THU_MUC_MAT).apply { deleteRecursively(); mkdirs() }
-        val arr = JSONArray()
-        ds.forEachIndexed { i, t ->
-            val o = JSONObject().put("khung", t.khung).put("trong_doi", t.trongDoi)
-            t.ten?.let { o.put("ten", it) }
-            t.goiY?.let { o.put("goi_y", it) }
-            if (!t.trongDoi) {
-                val ten = "$THU_MUC_MAT/%03d.png".format(i + 1)
-                Imgcodecs.imwrite(File(svc.filesDir, ten).path, t.mat)
-                o.put("mat", ten)
+        if(ds.isEmpty()) throw StopBot("Chưa đọc được thẻ nào trong Hội Trường. Giữ nguyên khung tướng cũ.")
+        // Ảnh phiên mới có đường dẫn riêng: lỗi ghi không làm hỏng ảnh của JSON cũ.
+        val thuMuc = File(dataDir, "$THU_MUC_MAT/phien-${UUID.randomUUID()}")
+        val tep = AtomicFile(File(dataDir, TEP_TUONG))
+        try {
+            check(thuMuc.mkdirs()) { "Không tạo được thư mục ảnh tướng" }
+            val arr = JSONArray()
+            ds.forEachIndexed { i, t ->
+                val o = JSONObject().put("khung", if(t.khung==KhungTuong.CHUA_RO) JSONObject.NULL else t.khung).put("trong_doi", t.trongDoi)
+                    .put("phien_ban_mau",thuVien.phienBan).put("chat_luong_cat",t.chatLuong?.json()).put("khung_chi_tiet",JSONArray(t.khungChiTiet)).put("ly_do_ten",t.lyDoTen)
+                t.ten?.let { o.put("ten", it) }
+                t.goiY?.let { o.put("goi_y", it) }
+                if (!t.trongDoi) {
+                    val f = File(thuMuc, "%03d.png".format(i + 1))
+                    check(Imgcodecs.imwrite(f.path, t.mat)) { "Không ghi được ảnh tướng ${i + 1}" }
+                    o.put("mat", f.relativeTo(dataDir).path)
+                }
+                val card = File(thuMuc, "%03d_the.png".format(i+1))
+                check(Imgcodecs.imwrite(card.path,t.anh));o.put("anh",card.relativeTo(dataDir).path)
+                arr.put(o)
             }
-            arr.put(o)
+            File(session,"result.json").writeText(arr.toString(2))
+            val out = tep.startWrite()
+            try {
+                out.write(arr.toString(1).toByteArray(Charsets.UTF_8))
+                tep.finishWrite(out)
+            } catch (e: Exception) {
+                tep.failWrite(out)
+                throw e
+            }
+        } catch (e: Exception) {
+            thuMuc.deleteRecursively()
+            ds.forEach { it.anh.release(); it.mat.release() }
+            throw StopBot("Không lưu được khung tướng; giữ dữ liệu cũ: ${e.message}")
         }
-        File(svc.filesDir, TEP_TUONG).writeText(arr.toString(1))
+        proof.put("elapsed_ms",now()-readStarted).put("current_result_sha256",fileHash(TEP_TUONG)?:JSONObject.NULL).put("manual_after_sha256",fileHash(KhungTuong.TEP_TAY)?:JSONObject.NULL)
+        File(session,"session.json").writeText(proof.toString(2))
         runCatching { luuUngVien(ds) }.onFailure { AppLog.i("Không lưu được thẻ ứng viên: ${it.message}") }
         val cuaToi = ds.filter { !it.trongDoi }.mapNotNull { t -> t.ten?.let { it to t.khung } }
             .groupBy({ it.first }, { it.second }).mapValues { it.value.max() }

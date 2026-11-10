@@ -12,6 +12,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.view.Display
 import android.widget.Toast
+import vn.afkauto.leoai.vision.nutHoiTruong
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import kotlinx.coroutines.CancellationException
@@ -122,11 +123,18 @@ class BotService : AccessibilityService() {
     /** Bài thử: mở Thành Tích, đọc danh sách đội rồi dừng (không đánh, không chép). */
     fun startReadRecords() = runJob("Đọc Thành Tích") { leo.chay(Leo.CheDoChay.XEM_THANH_TICH) }
 
-    /** Đọc khung (phẩm) tướng của bạn ở danh sách tướng màn đội hình; chạy lại sau khi nâng phẩm tướng. */
-    var heroesReadStatus = "Bấm đọc để trở lại game, rồi mở Màn AFK hoặc màn đội hình. Bot chờ tối đa 45 giây; kết quả cập nhật khi quay lại app."
+    /** Đọc khung (phẩm) tướng của bạn trong Hội Trường Cộng Hưởng; chạy lại sau khi nâng phẩm tướng. */
+    var heroesReadStatus = "Bấm đọc để trở lại game, rồi mở Hội Trường Cộng Hưởng. Bot chờ tối đa 45 giây; kết quả cập nhật khi quay lại app."
         private set
 
-    fun startReadHeroes() = runJob("Đọc khung tướng") { readHeroes() }
+    fun heroProfileChanged() {
+        check(!isJobRunning) { "Dừng tác vụ trước khi chuyển hồ sơ" }
+        heroesReadStatus = "Đã chuyển hồ sơ. Mở tài khoản tương ứng trong game rồi đọc lại."
+    }
+
+    var expectedHeroes: Int? = null
+
+    fun startReadHeroes() = runJob("Đọc khung tướng") { expectedHeroes=null;readHeroes() }
 
     /** Màn app phải xuống nền trước khi đọc; không chụp chính giao diện cài đặt. */
     fun startReadHeroesFromApp() = runJob("Đọc khung tướng") {
@@ -139,7 +147,7 @@ class BotService : AccessibilityService() {
             true
         } == true
         if (!ready) {
-            heroesReadStatus = "Chưa thấy game. Hãy mở Màn AFK hoặc màn đội hình rồi bấm Khung tướng trong Nâng cao của bảng nổi."
+            heroesReadStatus = "Chưa thấy game. Hãy mở Hội Trường Cộng Hưởng rồi bấm Khung tướng trong Nâng cao của bảng nổi."
             Toast.makeText(this, heroesReadStatus, Toast.LENGTH_LONG).show()
             throw StopBot(heroesReadStatus)
         }
@@ -149,22 +157,22 @@ class BotService : AccessibilityService() {
     private suspend fun readHeroes(waitForScreen: Boolean = false) {
         try {
             if (waitForScreen) {
-                heroesReadStatus = "Mở Màn AFK hoặc màn đội hình trong game. Bot đang chờ tối đa 45 giây để đọc."
-                BotStatus.set("Đọc khung · chờ Màn AFK / đội hình")
+                heroesReadStatus = "Mở Hội Trường Cộng Hưởng trong game. Bot đang chờ tối đa 45 giây để đọc."
+                BotStatus.set("Đọc khung · chờ Hội Trường")
                 Toast.makeText(this, heroesReadStatus, Toast.LENGTH_LONG).show()
                 val found = withTimeoutOrNull(45_000) {
                     var ready = false
                     while (!ready) {
                         val img = screenshot()
                         ready = try {
-                            withContext(Dispatchers.Default) { nd.nhanDien(img).manHinh in listOf("man_afk", "doi_hinh") }
+                            leo.sanSangDoc(img,withContext(Dispatchers.Default) { nd.nhanDien(img) })
                         } finally { img.release() }
                         if (!ready) delay(1000)
                     }
                     true
                 } == true
                 if (!found) {
-                    heroesReadStatus = "Chưa thấy Màn AFK hoặc đội hình sau 45 giây. Mở đúng màn rồi thử lại bằng nút Khung tướng trên bảng nổi."
+                    heroesReadStatus = "Chưa thấy Hội Trường sau 45 giây. Mở đúng màn rồi thử lại bằng nút Khung tướng trên bảng nổi."
                     throw StopBot(heroesReadStatus)
                 }
             }
@@ -172,16 +180,16 @@ class BotService : AccessibilityService() {
             BotStatus.set("Đang đọc khung tướng")
             val ok = leo.docTuong()
             heroesReadStatus = if (ok) "Đã đọc xong khung tướng. Kết quả bên dưới đã được cập nhật."
-                else "Chưa đọc được: hãy mở Màn AFK hoặc màn đội hình trong game rồi thử lại."
+                else "Chưa đọc được: hãy mở Hội Trường Cộng Hưởng trong game rồi thử lại."
             Toast.makeText(this, heroesReadStatus, Toast.LENGTH_LONG).show()
             if (!ok) throw StopBot(heroesReadStatus)
         } catch (e: CancellationException) {
             heroesReadStatus = "Đã dừng đọc khung tướng. Bạn có thể bấm đọc lại."
             throw e
         } catch (e: Exception) {
-            if (e !is StopBot) heroesReadStatus = "Đọc khung tướng gặp lỗi: ${e.message}. Xem Nhật ký để biết chi tiết."
+            heroesReadStatus = if(e is StopBot) e.reason else "Đọc khung tướng gặp lỗi: ${e.message}. Xem Nhật ký để biết chi tiết."
             throw e
-        }
+        } finally { expectedHeroes = null }
     }
 
     /** Bài thử: nhận diện màn hình hiện tại và ghi vào nhật ký. */

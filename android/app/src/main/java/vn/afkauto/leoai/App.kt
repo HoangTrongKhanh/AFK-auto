@@ -9,6 +9,7 @@ class App : Application() {
         super.onCreate()
         AppLog.init(this)
         if (!OpenCVLoader.initLocal()) AppLog.i("Không nạp được thư viện OpenCV.")
+        else org.opencv.core.Core.setNumThreads(2)
     }
 }
 

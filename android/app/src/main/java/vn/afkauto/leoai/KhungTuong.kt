@@ -8,8 +8,7 @@ import java.io.File
 /** Khung tướng của bạn, dùng chung cho màn hình app và bot (tệp trong thư mục riêng của app):
  *  - các tướng quan trọng (theo thư viện tướng): tướng mà ít nhất 5% bản ghi dùng có khung;
  *  - khung bạn tự đánh dấu (luôn thay kết quả tự đọc);
- *  - thẻ ứng viên của từng tướng quan trọng ở lần đọc danh sách gần nhất, và thẻ bạn đã xác nhận đúng là tướng đó (bot thêm
- *    mặt thẻ vào thư viện và viền thẻ vào bước xếp khung, lần đọc sau nhận đúng ngay). */
+ *  - thẻ ứng viên của từng tướng quan trọng ở lần đọc danh sách gần nhất, và thẻ bạn đã xác nhận đúng là tướng đó (ảnh mặt được đưa vào hàng chờ; chỉ mẫu đã duyệt mới được nhận diện dùng). */
 object KhungTuong {
     const val TEP_TAY = "khung_tay.json"            // {tên: 1 có khung | 0 không khung | -1 chưa có tướng}
     const val TEP_TU_DOC = "tuong_cua_toi.json"     // kết quả tự đọc (Leo.docDanhSachTuong)
@@ -22,11 +21,17 @@ object KhungTuong {
 
     const val CO = 1
     const val KHONG = 0
+    const val CHUA_RO = -3
     const val CHUA_CO = -1
 
     data class TuongQuanTrong(val ten: String, val phan: Double)
-    data class UngVien(val anh: String, val khung: Int, val diem: Double, val trongDoi: Boolean = false)
-    data class XacNhan(val anh: String, val khung: Int)
+    data class UngVien(val anh: String, val khung: Int, val diem: Double, val trongDoi: Boolean = false, val mat: String? = null, val nguon: String? = null)
+    data class XacNhan(val anh: String, val khung: Int, val mauId: String? = null)
+
+    fun hoSo(ctx: Context) = vn.afkauto.leoai.vision.HoSoTaiKhoan(ctx.filesDir)
+    fun duLieu(ctx: Context): File = hoSo(ctx).current().dir
+
+    fun kho(ctx: Context) = vn.afkauto.leoai.vision.KhoMauAndroid(File(ctx.filesDir,"kho_mau_v2")) { ctx.assets.open("vision-v2/$it").use { f -> f.readBytes() } }
 
     /** Tướng quan trọng, giảm dần theo phần bản ghi dùng tướng đó có khung. */
     fun quanTrong(ctx: Context): List<TuongQuanTrong> = runCatching {
@@ -49,14 +54,14 @@ object KhungTuong {
     /** Kết quả tự đọc: tên -> khung (lấy khung cao nhất nếu một tướng có nhiều thẻ), TRONG_DOI nếu chỉ thấy thẻ của tướng
      *  đang trong đội: game phủ xanh thẻ đó nên không đọc được khung (14/10: Eryndor có khung bị đọc thành không khung). */
     fun docTuDoc(dir: File): Map<String, Int> = runCatching {
-        val arr = JSONArray(File(dir, TEP_TU_DOC).readText())
+        val arr = JSONArray(String(android.util.AtomicFile(File(dir, TEP_TU_DOC)).readFully(), Charsets.UTF_8))
         val out = mutableMapOf<String, Int>()
         for (i in 0 until arr.length()) {
             val o = arr.getJSONObject(i)
             if (!o.has("ten")) continue
             val t = o.getString("ten")
             if (o.optBoolean("trong_doi")) { if (t !in out) out[t] = TRONG_DOI; continue }
-            out[t] = maxOf(out[t]?.takeIf { it != TRONG_DOI } ?: 0, o.getInt("khung"))
+            out[t] = maxOf(out[t]?.takeIf { it != TRONG_DOI } ?: CHUA_RO, o.optInt("khung", CHUA_RO))
         }
         out
     }.getOrDefault(emptyMap())
@@ -67,25 +72,25 @@ object KhungTuong {
         o.keys().asSequence().associateWith { t ->
             val a = o.getJSONArray(t)
             (0 until a.length()).map { a.getJSONObject(it) }
-                .map { UngVien(it.getString("anh"), it.getInt("khung"), it.getDouble("diem"), it.optBoolean("trong_doi")) }
+                .map { UngVien(it.getString("anh"), it.optInt("khung", CHUA_RO), it.getDouble("diem"), it.optBoolean("trong_doi"), it.optString("mat").takeIf { v -> v.isNotBlank() }, it.optString("nguon").takeIf { v -> v.isNotBlank() }) }
         }
     }
 
     fun ghiUngVien(dir: File, uv: Map<String, List<UngVien>>) {
         val o = JSONObject()
         for ((t, ds) in uv) o.put(t, JSONArray(ds.map {
-            JSONObject().put("anh", it.anh).put("khung", it.khung).put("diem", it.diem).put("trong_doi", it.trongDoi)
+            JSONObject().put("anh", it.anh).put("khung", it.khung).put("diem", it.diem).put("trong_doi", it.trongDoi).put("mat", it.mat).put("nguon", it.nguon)
         }))
         File(dir, TEP_UNG_VIEN).writeText(o.toString(1))
     }
 
     fun docXacNhan(dir: File): MutableMap<String, XacNhan> = docObj(File(dir, TEP_XAC_NHAN)).let { o ->
-        o.keys().asSequence().associateWith { o.getJSONObject(it).let { x -> XacNhan(x.getString("anh"), x.getInt("khung")) } }.toMutableMap()
+        o.keys().asSequence().associateWith { o.getJSONObject(it).let { x -> XacNhan(x.getString("anh"), x.optInt("khung", CHUA_RO), x.optString("mau_id").takeIf { v -> v.startsWith("android-") }) } }.toMutableMap()
     }
 
     fun ghiXacNhan(dir: File, xn: Map<String, XacNhan>) {
         val o = JSONObject()
-        for ((t, x) in xn) o.put(t, JSONObject().put("anh", x.anh).put("khung", x.khung))
+        for ((t, x) in xn) o.put(t, JSONObject().put("anh", x.anh).put("khung", x.khung).put("mau_id", x.mauId))
         File(dir, TEP_XAC_NHAN).writeText(o.toString(1))
     }
 
