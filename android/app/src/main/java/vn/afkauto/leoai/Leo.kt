@@ -25,6 +25,7 @@ import vn.afkauto.leoai.vision.REF_W
 import vn.afkauto.leoai.vision.SoKhung
 import vn.afkauto.leoai.vision.ThuVienTuong
 import vn.afkauto.leoai.vision.cungDoi
+import vn.afkauto.leoai.vision.giongTen
 import vn.afkauto.leoai.vision.dacTrungVien
 import vn.afkauto.leoai.vision.daiTuong
 import vn.afkauto.leoai.vision.decodeImage
@@ -101,6 +102,7 @@ class Leo(private val svc: BotService) {
         var vong = 0                                // vòng thử đội trong Thành Tích ở ải này (0 = vòng đầu)
         var dsCu: List<DoiThanhTich>? = null        // danh sách Thành Tích đọc lần trước ở ải này
         var daDanh = true                           // đã đánh trận kể từ lần đọc dsCu (game có thể đã đổi thứ tự)
+        var loiChonDoi = 0                          // chặn vòng đọc lại vô hạn khi không xác nhận được đội
         var ai: Int? = null                         // leo hộ: ải của người nhờ ở chế độ này (đọc ở tiêu đề màn đội hình)
     }
 
@@ -158,6 +160,13 @@ class Leo(private val svc: BotService) {
     }
 
     private suspend fun bam(k: KetQua, nut: String, cho: Long = CHO_SAU_BAM) {
+        if (nut == "tt_nhan_de_dong" && nut !in k.nut && k.manHinh == "thanh_tich") {
+            val (img, moi) = chup()
+            try {
+                if (moi.manHinh == "thanh_tich") bamDongTrong(img)
+            } finally { img.release() }
+            return
+        }
         // Màn hình đang chuyển (ví dụ màn BẠI vừa bấm ← xong: nút đã mờ đi nhưng chữ BẠI còn): chờ rồi chụp lại.
         val (x, y) = k.nut[nut] ?: run { delay(CHO_KHONG_RO); return }
         svc.tap(x, y)
@@ -651,6 +660,7 @@ class Leo(private val svc: BotService) {
         c.hoan.clear(); c.tyLe.clear()
         c.vong = 0
         c.dsCu = null
+        c.loiChonDoi = 0
         ai?.let { capNhatTienTrinh(it) }
     }
 
@@ -844,6 +854,16 @@ class Leo(private val svc: BotService) {
         if (d == null || dangO != chon) {
             AppLog.i("  Không tới được đội ${chon + 1} vừa chọn - đọc lại danh sách.")
             c.dsCu = null
+            c.loiChonDoi++
+            val (anhLoi, manLoi) = chup()
+            try {
+                svc.saveImage(anhLoi, "thanh-tich-chon-doi-${c.loiChonDoi}", force = true)
+                val docLoi = cpu { tt.doc(anhLoi) }
+                AppLog.i("  Chẩn đoán chọn đội: cần ${moTa(ds[chon])}; đọc ${docLoi ?: "không đọc được"}; " +
+                    "khớp tên ${giongTen(ds[chon].chuKy, docLoi?.chuKy)}; " +
+                    "màn ${manLoi.manHinh}; vị trí ${dangO?.plus(1) ?: "?"}; lần ${c.loiChonDoi}/3.")
+            } finally { anhLoi.release() }
+            if (c.loiChonDoi >= 3) throw StopBot("Không xác nhận được bản ghi sau 3 lần chọn lại. Đã lưu ảnh chẩn đoán; dừng để tránh lặp vô hạn.")
             return
         }
         chep(kq, d, c, chon)
@@ -886,6 +906,7 @@ class Leo(private val svc: BotService) {
     }
 
     private suspend fun chep(k: KetQua, d: DoiThanhTich, c: CheDo, i: Int) {
+        c.loiChonDoi = 0
         AppLog.i("Chép đội ${i + 1}: ${moTa(d)}.")
         bam(k, "tt_sao_chep", 2000)
         c.daThu.add(d)

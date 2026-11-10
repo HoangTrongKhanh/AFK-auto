@@ -18,6 +18,11 @@ class V2Instrumentation:Instrumentation() {
   val out=File(targetContext.getExternalFilesDir(null),"parity/result.json");out.parentFile!!.mkdirs()
   try {
    check(OpenCVLoader.initLocal())
+   if(mode=="records") {
+    val report=ThanhTichChecks.run(this)
+    out.writeText(report.toString(2))
+    finish(Activity.RESULT_OK,Bundle().apply{putString("report",report.toString())});return
+   }
    val activity=startActivitySync(Intent(targetContext,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
    runOnMainSync { activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
    if(mode=="storage") {

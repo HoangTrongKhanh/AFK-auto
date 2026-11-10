@@ -700,6 +700,14 @@
    ]
   },
   {
+   "ten": "thanh_tich",
+   "can": [
+    "tt_sao_chep",
+    "tt_nam_dam",
+    "tt_o_loc_chu"
+   ]
+  },
+  {
    "ten": "bai",
    "can": [
     "bai_thu_lai"
@@ -828,7 +836,8 @@
    "tt_mui_ten_phai",
    "tt_mui_ten_trai",
    "tt_o_loc_chu",
-   "tt_nam_dam"
+   "tt_nam_dam",
+   "tt_nhan_de_dong"
   ],
   "bai": [
    "nut_quay_lai",

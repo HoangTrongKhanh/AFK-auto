@@ -142,6 +142,8 @@ MAN_HINH = [
     ("xu_ly_xong", ["xu_ly_xong_nut_2"]),
     ("xu_ly_xong", ["xu_ly_xong_chu"]),
     ("thanh_tich", ["tt_sao_chep", "tt_nhan_de_dong"]),
+    # "Nhấn để đóng" nhấp nháy; dùng các mốc đứng yên khi chữ đó mờ đi.
+    ("thanh_tich", ["tt_sao_chep", "tt_nam_dam", "tt_o_loc_chu"]),
     # Nút "Thử Lại" chỉ có ở màn BẠI; mục "Lời Khuyên Chiến Trận" có lúc không hiện (chỉ còn "Tăng Sức Mạnh").
     ("bai", ["bai_thu_lai"]),
     ("dai_dien_thang", ["dd_dai_dien", "dd_tiep_theo"]),
@@ -170,7 +172,7 @@ NUT_THEM = {
     "huyen_linh_chon": ["nut_quay_lai"],
     "man_afk": ["man_afk_chien_dau", "man_afk_chien_dau_ngang", "man_afk_huyen_linh", "nut_quay_lai", "ht_nut_afk"],
     "doi_hinh": ["tieu_de_mua_giai", "tieu_de_huyen", "nut_quay_lai"],
-    "thanh_tich": ["tt_mui_ten_phai", "tt_mui_ten_trai", "tt_o_loc_chu", "tt_nam_dam"],
+    "thanh_tich": ["tt_mui_ten_phai", "tt_mui_ten_trai", "tt_o_loc_chu", "tt_nam_dam", "tt_nhan_de_dong"],
     "bai": ["nut_quay_lai", "bai_loi_khuyen"],
     "thang": ["nut_quay_lai", "thang_chien_dau", "thang_huyen_linh"],
     "dai_dien_chon": ["dd_chon_chien_dau", "dd_chon_huyen_linh"],

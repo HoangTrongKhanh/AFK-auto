@@ -19,7 +19,8 @@ private const val THU_CONG_Y1 = 512
 private const val LY_TUONG_Y0 = 365
 private const val LY_TUONG_Y1 = 405
 private const val RONG_THE = 490
-private const val TEN_TU_MEP = 150
+// Viền đại diện động lấn vào 150..190px: không đưa phần đó vào chữ ký tên (khác theo từng khung hình).
+private const val TEN_TU_MEP = 200
 private val O_LOC = Box(55, 40, 140, 115)
 private const val RONG_SO = 0.67
 private const val RONG_M = 1.28
