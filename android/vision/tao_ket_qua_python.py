@@ -81,6 +81,10 @@ def main():
         rel = path.relative_to(ROOT).as_posix()
         tuong = D.doc([cv2.imread(str(path))], tv)
         rows.append(["ds", rel] + [f"{x['ten'] or '-'}:{x['khung']}:{int(x['trong_doi'])}" for x in tuong])
+    for path in sorted((ROOT / "samples").glob("tab_s7_hoi_truong_*.png")):
+        if path.stem.endswith("_nut"): continue
+        tuong=D.doc([cv2.imread(str(path))],tv,hoi_truong=True)
+        rows.append(["ds_ht",path.relative_to(ROOT).as_posix()]+[f"{x['ten'] or '-'}:{x['khung']}:{int(x['trong_doi'])}" for x in tuong])
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("".join("\t".join(r) + "\n" for r in rows), encoding="utf-8")
     print(f"Đã ghi {len(rows)} dòng vào {OUT.relative_to(ROOT)}")

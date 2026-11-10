@@ -19,6 +19,9 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Bộ đối chiếu đọc ảnh và phiên bản mẫu ngoài module; phải chạy lại khi gọi kiểm tra.
+    outputs.upToDateWhen { false }
+    outputs.doNotCacheIf("Bộ mẫu và ảnh đối chiếu nằm ngoài module") { true }
     systemProperty("afkauto.root", rootDir.parentFile.absolutePath)    // thư mục chứa templates/ và samples/
     testLogging {
         events("passed", "failed")

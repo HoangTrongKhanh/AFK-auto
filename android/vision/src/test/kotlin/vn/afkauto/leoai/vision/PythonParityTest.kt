@@ -2,6 +2,7 @@ package vn.afkauto.leoai.vision
 
 import nu.pattern.OpenCV
 import org.opencv.core.Mat
+import org.opencv.imgcodecs.Imgcodecs
 import java.io.File
 import kotlin.math.abs
 import kotlin.test.Test
@@ -158,6 +159,21 @@ class PythonParityTest {
             val got = doc.xong().map { "${it.ten ?: "-"}:${it.khung}:${if (it.trongDoi) 1 else 0}" }
             assertEquals(r.drop(2), got, r[1])
         }
+    }
+
+    @Test
+    fun danhSachHoiTruong() {
+        val label=Imgcodecs.imread(root.resolve("templates/vi/ht_cap.png").toString(),Imgcodecs.IMREAD_GRAYSCALE)
+        try {
+            for(r in rows("ds_ht")) {
+                val doc=DocDanhSach(tv,label)
+                doc.them(image(r[1]))
+                val ds=doc.xong()
+                val got=ds.map{"${it.ten ?: "-"}:${it.khung}:${if(it.trongDoi) 1 else 0}"}
+                assertEquals(r.drop(2),got,r[1])
+                ds.forEach{it.anh.release();it.mat.release()}
+            }
+        } finally {label.release()}
     }
 
     @Test

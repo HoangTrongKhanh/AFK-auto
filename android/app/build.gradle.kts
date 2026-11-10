@@ -16,6 +16,7 @@ android {
         targetSdk = 36
         versionCode = 22
         versionName = "1.12"
+        testInstrumentationRunner = "vn.afkauto.leoai.V2Instrumentation"
     }
 
     // Khóa ký bản phát hành nằm ngoài repo (android/keystore.properties trỏ tới file .jks). Không có thì bản release
@@ -40,12 +41,18 @@ android {
         debug {
             ndk { abiFilters += listOf("arm64-v8a", "x86_64") }     // máy thật + máy ảo
         }
+        create("validation") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".validation"
+            matchingFallbacks += listOf("debug")
+        }
         release {
             ndk { abiFilters += listOf("arm64-v8a") }               // điện thoại/máy tính bảng thật
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("phatHanh") ?: signingConfigs.getByName("debug")
         }
     }
+    testBuildType = "validation"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
