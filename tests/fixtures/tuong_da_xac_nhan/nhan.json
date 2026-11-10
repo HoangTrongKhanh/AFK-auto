@@ -1,0 +1,22 @@
+{
+  "Estrilda": {
+    "mat": "Estrilda.png",
+    "bang_chung": "Estrilda_ten.png",
+    "nguon": "Tên hiển thị trực tiếp trong game trên Tab S7, 30/10/2026"
+  },
+  "Karma": {
+    "mat": "Karma.png",
+    "bang_chung": "Karma_ten.png",
+    "nguon": "Tên hiển thị trực tiếp trong game trên Tab S7, 30/10/2026"
+  },
+  "Hammie": {
+    "mat": "Hammie.png",
+    "bang_chung": "Hammie_ten.png",
+    "nguon": "Tên hiển thị trực tiếp trong game trên Tab S7, 30/10/2026"
+  },
+  "Chippy": {
+    "mat": "Chippy.png",
+    "bang_chung": "Chippy_ten.png",
+    "nguon": "Tên hiển thị trực tiếp trong game trên Tab S7, 30/10/2026"
+  }
+}
