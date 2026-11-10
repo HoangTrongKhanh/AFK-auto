@@ -15,6 +15,7 @@ from nhan_dien import MAN_HINH, MAU, NUT_THEM, SAMPLES, TPL_DIR
 
 # Mẫu phụ cho thanh_tich.py: tên -> (ảnh mẫu, hộp x0 y0 x1 y1 theo máy gốc)
 MAU_THANH_TICH = {
+    "ht_cap": ("tab_s7_hoi_truong_cuon", (216, 1454, 275, 1490)),
     "tt_thu_cong": ("thanh_tich/hl_515_02", (700, 470, 990, 508)),        # dưới tên đội đang chọn (thẻ giữa)
     "tt_chua_xep_hang": ("thanh_tich/afk_751_01", (830, 692, 1225, 755)),
 }

@@ -43,6 +43,13 @@ class Mau:
 
 
 MAU = {
+    "ht_tieu_de": Mau("tab_s7_hoi_truong_tren_cung", (105, 55, 705, 130), "tren", 40),
+    "ht_dau": Mau("tab_s7_hoi_truong_tren_cung", (670, 545, 965, 645), "tren", 40),
+    "ht_mui_ten_ve": Mau("tab_s7_hoi_truong_dau", (50, 2390, 160, 2470), "duoi", 40),
+    "ht_nut_menu": Mau("tab_s7_hoi_truong_nut", (840, 2380, 935, 2465), "duoi", 100),
+    "ht_nut_afk": Mau("tab_s7_man_afk", (715, 2422, 838, 2480), "duoi", 100),
+    "ht_di_vat": Mau("tab_s7_hoi_truong_dau", (365, 2180, 565, 2265), "duoi", 50),
+    "ht_trang_bi": Mau("tab_s7_hoi_truong_dau", (1040, 2180, 1280, 2265), "duoi", 50),
     # Màn AFK
     "man_afk_tieu_de": Mau("tab_s7_man_afk", (114, 1195, 490, 1290), "giua", 200),
     "man_afk_chien_dau": Mau("tab_s7_man_afk", (1043, 2095, 1490, 2190), "duoi"),
@@ -149,14 +156,19 @@ MAN_HINH = [
     ("dai_dien_chon", ["dd_doi_hinh_dich"]),
     # Theo tiêu đề "Màn AFK": khi một phần (Chiến Đấu hoặc Thách Đấu Huyền Linh) hết ải, game chỉ còn 1 nút ngang.
     ("man_afk", ["man_afk_tieu_de"]),
+    ("hoi_truong", ["ht_tieu_de"]),
+    ("hoi_truong", ["ht_dau", "ht_nut_menu"]),
+    ("hoi_truong", ["ht_di_vat", "ht_trang_bi"]),
     ("ban_do", ["ban_do_che_do", "ban_do_nut_man_afk"]),
 ]
 # Mẫu cần tìm thêm (để lấy vị trí bấm) khi đã biết màn hình.
 XU_LY_TOI = ["xu_ly_ban_do", "xu_ly_man_afk"]     # mẫu vẫn dò khi màn hình tối (bị khóa)
 
 NUT_THEM = {
+    "hoi_truong": ["ht_nut_menu", "ht_dau", "ht_mui_ten_ve"],
+    "ban_do": ["ht_nut_menu"],
     "huyen_linh_chon": ["nut_quay_lai"],
-    "man_afk": ["man_afk_chien_dau", "man_afk_chien_dau_ngang", "man_afk_huyen_linh", "nut_quay_lai"],
+    "man_afk": ["man_afk_chien_dau", "man_afk_chien_dau_ngang", "man_afk_huyen_linh", "nut_quay_lai", "ht_nut_afk"],
     "doi_hinh": ["tieu_de_mua_giai", "tieu_de_huyen", "nut_quay_lai"],
     "thanh_tich": ["tt_mui_ten_phai", "tt_mui_ten_trai", "tt_o_loc_chu", "tt_nam_dam"],
     "bai": ["nut_quay_lai", "bai_loi_khuyen"],

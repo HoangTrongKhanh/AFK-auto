@@ -59,3 +59,9 @@ tab_s7_dai_dien_doi_hinh_hl_trong.png doi_hinh huyen_linh
 tab_s7_dai_dien_doi_hinh_hl.png doi_hinh huyen_linh
 tab_s7_dai_dien_dang_tai.png khoa   # màn tải "Đang tham gia Đại Diện Tác Chiến" tối như lớp khóa; bot hỏi máy rồi coi là khong_ro
 tab_s7_man_afk_vuot_qua_het.png man_afk    # đã qua hết ải ("Đã Vượt Qua Tất Cả Màn Chơi"), không còn nút nào
+tab_s7_hoi_truong_nut.png khong_ro
+tab_s7_hoi_truong_tren_cung.png hoi_truong
+tab_s7_hoi_truong_dau.png hoi_truong
+tab_s7_hoi_truong_cuon.png hoi_truong
+
+tab_s7_che_do_chien_dau.png khong_ro
