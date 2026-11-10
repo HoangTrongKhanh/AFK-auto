@@ -102,7 +102,7 @@ private fun khopMax(img: Mat, tpl: Mat): Double {
 fun giongMat(a: Mat, b: Mat): Double {
     fun motChieu(x: Mat, y: Mat): Double {
         val giua = y.submat(LE, y.rows() - LE, LE, y.cols() - LE)
-        return khopMax(x, giua)
+        return try { khopMax(x, giua) } finally { giua.release() }
     }
     return minOf(motChieu(a, b), motChieu(b, a))
 }
@@ -160,8 +160,16 @@ class ThuVienTuong(
     val soBanGhi: Int = 0,
 ) {
     val mat: MutableMap<String, MutableList<Mat>> = mat.mapValues { it.value.toMutableList() }.toMutableMap()
+    var engineV2: KhungV2? = null
+    var mocDau: Mat? = null
+    var phienBan: String? = null
     private val vien = vien.toMutableList()
     private val nhanVien = nhanVien.toMutableList()
+
+    fun release() {
+        mat.values.flatten().forEach { it.release() }
+        mauSao.forEach { it.release() };engineV2?.release();mocDau?.release()
+    }
 
     /** Mặt tướng bạn đã xác nhận (lấy từ chính danh sách của bạn): đặt lên đầu để lần sau khớp gần như tuyệt đối. */
     fun themMat(ten: String, m: Mat) { mat.getOrPut(ten) { mutableListOf() }.add(0, m) }
@@ -198,7 +206,7 @@ class ThuVienTuong(
 
     /** Điểm khớp cao nhất với từng tướng, giảm dần: list (điểm, tên). */
     fun diem(m: Mat): List<Pair<Double, String>> =
-        mat.map { (t, v) -> v.maxOf { giongMat(m, it) } to t }.sortedByDescending { it.first }
+        mat.map { (t, v) -> v.maxOf { giongMat(m, it) } to t }.sortedWith(compareByDescending<Pair<Double,String>>{it.first}.thenByDescending{it.second})
 
     companion object {
         fun load(read: (String) -> ByteArray): ThuVienTuong {
@@ -330,26 +338,32 @@ fun catTheDanhSach(img: Mat, cot0: CotDanhSach?): Pair<List<TheDanhSach>, CotDan
 /** Mặt trên thẻ danh sách (khổ thẻ bản ghi). */
 fun matTheDanhSach(the: Mat): Mat {
     val m = the.cat((BUOC_THE / 2 - MAT_RONG).toDouble(), MAT_Y0.toDouble(), (BUOC_THE / 2 + MAT_RONG).toDouble(), MAT_Y1.toDouble())
-    return chuanMat(m)
+    return try { chuanMat(m) } finally { m.release() }
 }
 
 /** Thẻ của tướng đang trong đội: game phủ màu xanh lá và dấu tích. */
 fun trongDoi(the: Mat) = Bin.hsv(the, doubleArrayOf(35.0, 61.0, 0.0), doubleArrayOf(85.0, 255.0, 255.0)).mean() >= XANH_TRONG_DOI
 
 /** Một thẻ trong danh sách tướng của bạn. */
-class TuongCuaToi(var anh: Mat, val mat: Mat, var khung: Int, val trongDoi: Boolean) {
+class TuongCuaToi(var anh: Mat, var mat: Mat, var khung: Int, val trongDoi: Boolean) {
     /** (khung, độ tin) của từng lần thấy thẻ này. */
     val lan = mutableListOf<Pair<Int, Double>>()
     var ten: String? = null
     var goiY: String? = null
     var diem = 0.0
+    var doNet = 0.0
+    var chatLuong: ChatLuongThe? = null
+    val khungChiTiet = mutableListOf<JSONObject>()
+    var dsDiem: List<Pair<Double, String>> = emptyList()
+    var lyDoTen: String? = null
+    var nguon: String? = null
 }
 
 /** Gán tên tướng cho các thẻ, mỗi tướng một thẻ: thẻ đang trong đội trước (khớp kém vì lớp phủ nên xét theo độ hơn
  *  tướng thứ 2), rồi thẻ thường theo điểm giảm dần (>= NHAN_TUONG); thẻ khớp 0.6-0.85 ghi tên đoán vào goiY. */
-fun ganTen(ds: List<TuongCuaToi>, tv: ThuVienTuong) {
+fun ganTen(ds: List<TuongCuaToi>, tv: ThuVienTuong, honNhi: Double = 0.0) {
     val diem = ds.map { tv.diem(it.mat) }
-    ds.forEachIndexed { i, x -> x.ten = null; x.goiY = null; x.diem = diem[i][0].first }
+    ds.forEachIndexed { i, x -> x.dsDiem=diem[i]; x.ten = null; x.goiY = null; x.diem = diem[i][0].first }
     val da = mutableSetOf<String>()
     for (i in ds.indices.filter { ds[it].trongDoi }.sortedByDescending { diem[it][0].first }) {
         val (d1, t1) = diem[i][0]
@@ -359,12 +373,12 @@ fun ganTen(ds: List<TuongCuaToi>, tv: ThuVienTuong) {
             da.add(t1)
         }
     }
-    val cap = ds.indices.filter { !ds[it].trongDoi }.flatMap { i -> diem[i].filter { it.first >= GOI_Y }.map { Triple(it.first, i, it.second) } }
+    val cap = ds.indices.filter { !ds[it].trongDoi }.flatMap { i -> (if(honNhi>0) diem[i].take(1) else diem[i]).filter { it.first >= GOI_Y }.map { Triple(it.first, i, it.second) } }
         .sortedWith(compareByDescending<Triple<Double, Int, String>> { it.first }.thenByDescending { it.second }.thenByDescending { it.third })
     for ((d, i, t) in cap) {
         val x = ds[i]
         if (x.ten != null || t in da) continue
-        if (d >= NHAN_TUONG) {
+        if (d >= NHAN_TUONG && (honNhi==0.0 || d-(diem[i].getOrNull(1)?.first?:0.0)>=honNhi)) {
             x.ten = t
             da.add(t)
         } else if (x.goiY == null) {
@@ -372,18 +386,35 @@ fun ganTen(ds: List<TuongCuaToi>, tv: ThuVienTuong) {
             x.diem = d
         }
     }
-    ds.forEach { if (it.ten != null) it.goiY = null }
+    ds.forEachIndexed { i,x ->
+        if(x.ten!=null)x.goiY=null
+        if(tv.engineV2!=null) {
+            val d1=diem[i][0].first;val d2=diem[i].getOrNull(1)?.first?:0.0
+            val margin = if (honNhi > 0.0) honNhi else 0.04
+            x.lyDoTen = when {
+                x.ten != null -> "mat_da_khop_mau"
+                x.trongDoi -> "the_phu_xanh_chua_du_bang_chung"
+                d1 < 0.85 -> "can_mau_dien_mao_da_xac_nhan"
+                (d1 - d2) < margin -> "hai_ten_qua_gan_nhau"
+                else -> "ten_da_gan_cho_the_khac"
+            }
+            if(x.ten==null && d1 < .85)x.goiY=null
+        }
+    }
 }
 
 /** Đọc danh sách tướng qua nhiều ảnh chụp (vuốt dần xuống): bỏ thẻ trùng giữa các lần chụp, xong thì gán tên. */
-class DocDanhSach(private val tv: ThuVienTuong) {
+class DocDanhSach(private val tv: ThuVienTuong, private val nhanHoiTruong: Mat? = null) {
     private var cot: CotDanhSach? = null
     val tuong = mutableListOf<TuongCuaToi>()
 
     /** Thêm các thẻ của một ảnh chụp danh sách; trả về số thẻ mới. Một thẻ thường hiện ở 2-3 lần chụp: khung lấy theo
      *  đa số các lần, hoà thì theo lần chắc nhất; ảnh thẻ giữ lần chắc nhất. */
-    fun them(img: Mat): Int {
-        val (ds, c) = catTheDanhSach(img, cot)
+    var lastGridFaces: List<Mat> = emptyList()
+        private set
+    fun them(img: Mat, sourceSha: String? = null): Int {
+        if(nhanHoiTruong!=null && tv.engineV2!=null)return themV2(img,sourceSha)
+        val (ds, c) = if (nhanHoiTruong == null) catTheDanhSach(img, cot) else catTheHoiTruong(img, nhanHoiTruong) to null
         if (cot == null) cot = c
         var moi = 0
         for (t in ds) {
@@ -391,7 +422,7 @@ class DocDanhSach(private val tv: ThuVienTuong) {
             val kt = tv.khungTin(t.anh)
             val cu = tuong.firstOrNull { giongMat(m, it.mat) >= CUNG_THE }
             if (cu == null) {
-                tuong.add(TuongCuaToi(t.anh, m, kt.first, trongDoi(t.anh)).also { it.lan.add(kt) })
+                tuong.add(TuongCuaToi(t.anh, m, kt.first, nhanHoiTruong == null && trongDoi(t.anh)).also { it.lan.add(kt) })
                 moi++
                 continue
             }
@@ -406,8 +437,25 @@ class DocDanhSach(private val tv: ThuVienTuong) {
         return moi
     }
 
+    private fun themV2(img:Mat,sourceSha:String?):Int {
+        val cards=catTheHoiTruongV2(img,requireNotNull(nhanHoiTruong),requireNotNull(tv.mocDau));lastGridFaces.forEach{it.release()};val grid=mutableListOf<Mat>();var count=0
+        for((idx,t) in cards.withIndex()) {
+            val m=matTheDanhSach(t.legacy);if(idx>=5)grid.add(m.clone());t.legacy.release()
+            val dg=requireNotNull(tv.engineV2).danhGia(t.anh,t.q);val diagnostic=dg.json().put("cat_the",t.q.json())
+            val nearest=tuong.indices.map{giongMat(m,tuong[it].mat) to it}.maxWithOrNull(compareBy<Pair<Double,Int>>{it.first}.thenBy{it.second})
+            val g=gray(m);val lap=Mat();Imgproc.Laplacian(g,lap,CvType.CV_64F);g.release();val net=sd(lap).let{it*it};lap.release()
+            if(nearest==null || nearest.first<CUNG_THE) {
+                tuong.add(TuongCuaToi(t.anh,m,dg.khung,false).also{it.lan.add(dg.khung to 0.0);it.doNet=net;it.chatLuong=t.q;it.khungChiTiet.add(diagnostic);it.nguon=sourceSha});count++;continue
+            }
+            val old=tuong[nearest.second];old.lan.add(dg.khung to 0.0);old.khungChiTiet.add(diagnostic)
+            val wasValid=old.chatLuong?.dayDu==true;val nowValid=t.q.dayDu
+            if(nowValid && !wasValid || nowValid==wasValid && net>old.doNet){old.anh.release();old.mat.release();old.anh=t.anh;old.mat=m;old.doNet=net;old.chatLuong=t.q;old.nguon=sourceSha}else{t.anh.release();m.release()}
+            val known=old.lan.map{it.first}.filter{it!=KHUNG_CHUA_RO}.toSet();old.khung=if(known.size==1)known.single() else KHUNG_CHUA_RO
+        }
+        lastGridFaces=grid;return count
+    }
     fun xong(): List<TuongCuaToi> {
-        ganTen(tuong, tv)
+        ganTen(tuong, tv,if(nhanHoiTruong!=null && tv.engineV2!=null).04 else 0.0)
         return tuong
     }
 }
@@ -418,6 +466,7 @@ class DocDanhSach(private val tv: ThuVienTuong) {
  *  còn của bạn không khung thì đội chép về yếu hơn hẳn. cuaToi: tên tướng -> khung của bạn; matCuaToi: (mặt, khung) của
  *  các thẻ không bị phủ xanh, để so trực tiếp khi chưa biết tên tướng. */
 class SoKhung(private val tv: ThuVienTuong, val cuaToi: Map<String, Int>, private val matCuaToi: List<Pair<Mat, Int>>) {
+    fun release() { matCuaToi.forEach { it.first.release() } }
     private fun khungCuaToi(m: Mat): Pair<String?, Int?> {
         val (d, ten) = tv.diem(m).first()
         val tenChac = ten.takeIf { d >= NHAN_TUONG }
