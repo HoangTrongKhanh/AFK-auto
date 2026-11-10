@@ -1,0 +1,27 @@
+{
+  "day_du": true,
+  "ly_do": "bien_day_du",
+  "bien": [
+    168,
+    1086,
+    356,
+    1351
+  ],
+  "ho_tro_vien": [
+    0.9433962264150944,
+    1.0
+  ],
+  "vung_sao_day_du": true,
+  "vien_day_du": true,
+  "khe_hang_tach": true,
+  "khe_cot_tach": true,
+  "bien_chuan": [
+    4,
+    16,
+    126,
+    188
+  ],
+  "ty_le": 0.648936170212766,
+  "tam_x": 250.0,
+  "tam_y": 1219.0
+}
