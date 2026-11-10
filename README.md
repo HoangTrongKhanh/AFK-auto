@@ -68,11 +68,88 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 ## Khung tướng (phẩm) của bạn
 
-`doc_tuong_cua_toi.py --serial <máy>` mở màn đội hình (chưa đánh), lướt danh sách tướng (vuốt ở khe giữa 2 cột, nửa
-hàng mỗi lần; lực chiến đội đổi là dừng), đọc khung từng thẻ và nhận tướng bằng ảnh mặt trong thư viện tướng
+`doc_tuong_cua_toi.py --serial <máy>` mở Hội Trường Cộng Hưởng từ nút trên bản đồ/Màn AFK và cuộn danh sách lớn để đọc khung. Dùng `--doi-hinh` khi cần bộ đọc cũ. Tướng được nhận bằng ảnh mặt trong thư viện tướng
 `templates/vi/tuong/` (tạo bằng `tao_thu_vien_tuong.py` từ dữ liệu Thành Tích đã thu; app Android dùng chung). Kết quả:
 `thu_thap_tuong/tuong_cua_toi.json` và `tuong_cua_toi.html` (tướng nào của bạn không khung trong khi bản ghi có khung).
-Thẻ khớp chưa chắc nằm ở mục "Cần xác nhận"; `--xac-nhan 29=Damian` lưu mặt thẻ đó vào thư viện và gán tên lại.
+Thẻ khớp chưa chắc nằm ở mục "Cần xác nhận"; `--xac-nhan 29=Damian` lưu mặt thẻ đó vào thư viện và gán tên lại. Xác nhận tên chỉ thêm mẫu viền khi đã đánh dấu khung bằng `--khung TEN=0|1`. Kết quả rỗng hoặc lỗi ghi ảnh/JSON giữ nguyên phiên cũ; ảnh mỗi phiên có đường dẫn riêng và được giữ lại để khôi phục.
+
+Bản Python đang thử nghiệm bộ cắt Hội Trường cải tiến: đọc cả 5 thẻ ở màn đầu, giữ thẻ tóc trắng, chọn ảnh mặt nét hơn qua nhiều lần thấy và chỉ gợi ý nếu hai tên khớp gần nhau. Python có thêm trạng thái **chưa xác định khung** (`khung: null` trong JSON): ảnh ít chi tiết, mẫu viền chưa đồng thuận hoặc các lần đọc mâu thuẫn không bị ép thành không khung. Bộ so đội bỏ qua khung chưa rõ; lựa chọn thủ công vẫn ưu tiên. Báo cáo HTML/JSON lưu bằng chứng điểm sao và phiếu mẫu viền. Các thay đổi này chưa chuyển sang Android.
+
+Nhập hàng loạt tên người dùng đã xác nhận theo snapshot ảnh cố định:
+
+```bash
+.venv/bin/python nhap_ten_tuong.py --danh-sach debug/can-bo-sung-ten-20261030 --ten debug/can-bo-sung-ten-20261030/ten_nguoi_dung.txt
+```
+
+Tệp tên có dạng `SO=TEN`, hỗ trợ tên nhiều từ; bỏ trống hoặc `?` để chưa xác nhận. Công cụ kiểm tra mã phiên, số thẻ trùng/ngoài danh sách và ảnh trước khi bổ sung mẫu mặt. Không học khung từ xác nhận tên. Khi sửa tên cùng số thẻ/cùng phiên, mẫu mang nhãn cũ được thay thế.
+
+Để tạo thư viện mặt bổ sung từ các nhóm đã đặt tên và các ảnh đã xác nhận:
+
+```bash
+.venv/bin/python bo_sung_mau_tuong.py --ra debug/mau-bo-sung-python.npz
+```
+
+Bộ chọn giữ tối đa 6 mẫu đa dạng mỗi nhóm, lưu khóa nguồn để đối chiếu. Nhãn nhóm kế thừa dữ liệu đã đặt tên; không lấy tên tự đoán từ danh sách tướng làm nhãn học. Nạp bằng `--thu-vien-mat debug/mau-bo-sung-python.npz`. Nếu cần tái tạo bốn mẫu tên đọc trực tiếp trong game, dùng thêm `--mat-da-xac-nhan tests/fixtures/tuong_da_xac_nhan` khi tạo thư viện.
+
+Đọc lại khung trên ảnh gốc và giữ số thẻ/tên từ báo cáo đã xác nhận:
+
+```bash
+.venv/bin/python doc_lai_khung_tuong.py --anh-goc debug/hoi-truong-buoc-nho-20261030 --tham-chieu debug/da-bo-sung-ten-20261030 --ra debug/can-lai-khung-20261030 --thu-vien-mat debug/mau-bo-sung-python.npz
+```
+
+Bộ căn tìm biên từng thẻ trong vùng ứng viên, tách tại khe cột/hàng khi chóp vàng chạm nhau, giữ tỷ lệ và đặt giữa ảnh chuẩn. Vùng mặt tham chiếu được lưu riêng để không đổi tên đã xác nhận. Mỗi lượt đọc ghi chất lượng biên, vùng sao và hai cạnh; trường hợp thiếu bằng chứng không dùng để kết luận khung. Báo cáo `so_sanh.html` giữ mã thẻ, ảnh trước/sau và số lượt đủ biên; `nguon/` chứa 15 ảnh gốc có đánh dấu biên; `truoc_sau.json` chứa số liệu thay đổi.
+
+Tạo lại bảng xác nhận từ biên bản kiểm tra bằng mắt ngày 07/11/2026:
+
+```bash
+.venv/bin/python tao_bang_xac_nhan_khung.py --bao-cao debug/can-lai-khung-20261030 --anh-goc debug/hoi-truong-buoc-nho-20261030 --danh-gia docs/kiem-tra-bang-mat-khung-20261107.json --ra debug/kiem-tra-khung-20261107
+```
+
+Mở `xac_nhan_khung.html` trong thư mục kết quả để xem 42 thẻ chưa rõ và #95 Indris nghi nhận nhầm tóc thành sao. Chọn `1` (có khung), `0` (không khung) hoặc `?` (chưa rõ), rồi lấy văn bản gửi vào chat hoặc tải TXT/JSON. Số thẻ/tên giữ nguyên; nhận xét của trợ lý không được tự đưa thành xác nhận người dùng. Nếu báo cáo nguồn đã đổi SHA-256, công cụ dừng để tránh dùng nhận xét của phiên cũ.
+
+Nhập câu trả lời khung vào báo cáo mới và lựa chọn tay của Python:
+
+```bash
+.venv/bin/python nhap_khung_tuong.py --bao-cao debug/can-lai-khung-20261030 --danh-gia docs/kiem-tra-bang-mat-khung-20261107.json --nhan debug/kiem-tra-khung-20261107/tra_loi_da_dinh_chinh.txt --ra debug/da-xac-nhan-khung-20261107 --khung-tay thu_thap_tuong/khung_tay.json
+```
+
+Câu trả lời dùng `SO=1|0|? # Tên`; tên sau `#` được đối chiếu nếu có. Báo cáo lưu riêng nguồn nhãn người dùng và kết luận máy trước xác nhận; `?` tiếp tục là chưa rõ. Đợt 07/11 có 43 nhãn đã xác nhận, gồm Lumont #89 và Indris #95 không khung. Báo cáo 117 thẻ sau nhập là 84 có/33 không; 74 thẻ còn lại vẫn mang nhãn tự đọc. Bộ nhập không tự học mẫu sao/viền.
+
+Học bộ so viền dành riêng cho ảnh đã căn (tập tướng kiểm tra giữ riêng):
+
+```bash
+.venv/bin/python huan_luyen_khung_can.py --bao-cao debug/can-lai-khung-20261030 --nhan debug/da-xac-nhan-khung-20261107/khung_da_xac_nhan.json --anh-goc debug/hoi-truong-buoc-nho-20261030 --chia-tap debug/cai-thien-khung-20261107/chia_tap.json --ra thu_thap_tuong/khung_can_python.npz
+```
+
+Python tự nạp mẫu này khi có; `ThuVien(mau_khung_can=PATH)` chọn tệp khác. Bộ so chỉ dùng màu/cấu trúc viền và dải sao, không tra tên hoặc lựa chọn tay. Trường hợp xa mẫu/không tách biệt vẫn giữ chưa rõ. Bộ căn đã bổ sung viền tím nhạt, bộ tìm hàng có dự phòng khi chữ Cấp không khớp. Phiên 16 ảnh mới đọc được đủ 43 tướng có nhãn: tự động đúng 36, sai 0, còn 7 chưa rõ; 14 tướng giữ lại đạt 9 đúng/0 sai/5 chưa rõ. Đây là tập khó cùng máy, chưa đại diện mọi thiết bị. Báo cáo ảnh và bằng chứng nằm ở `debug/cai-thien-khung-20261107/bao_cao.html`; các script lặp lại phép đo cũng lưu cùng thư mục. 43 lựa chọn tay vẫn ưu tiên khi Python so khung.
+
+Quản lý mẫu theo phiên bản và kiểm chứng độc lập:
+
+```bash
+.venv/bin/python quan_ly_mau.py current
+.venv/bin/python xuat_kho_mau.py --ra debug/quan-ly-mau-20261108/kho_mau.html
+.venv/bin/python quan_ly_mau.py rollback
+```
+
+Kho `thu_thap_tuong/kho_mau/` đã có 102 mẫu tên và 43 mẫu khung được duyệt; bản đang chạy chỉ học 29 mẫu khung, giữ riêng 14 mẫu đánh giá. Mẫu chờ/bị loại không tự vào bản phát hành, kích hoạt và khôi phục kiểm tra đủ mã nội dung rồi mới thay con trỏ. `ThuVien()` ưu tiên kho đã kích hoạt; tệp mô hình rời không tự thay bản đang chạy. Xác nhận tên mới được đưa vào hàng chờ; chỉ mẫu đã duyệt mới được bổ sung vào bộ cá nhân.
+
+Vòng v1 đã kiểm chứng trên tài khoản khác: 16 ảnh mới, 50 nhóm thẻ được người dùng gán nhãn sau khi dự đoán được niêm phong. Kết quả **45 đúng / 1 sai / 4 chưa rõ**; lỗi #38 được ghi rõ. Tập kiểm tra được chặn khỏi học bằng mã ảnh và ảnh nguồn/dẫn xuất. Cùng Tab S7, chưa đánh giá thiết bị khác hoặc độ phủ danh sách đầy đủ. [Hướng dẫn quản lý và kiểm chứng](docs/quan-ly-mau-va-kiem-chung.md) có quy trình duyệt, học ứng viên, phát hành, kích hoạt, khôi phục và chấm lại.
+
+Để kiểm tra đầy đủ một phiên trên máy thật:
+
+```bash
+.venv/bin/python kiem_tra_hoi_truong.py --serial SERIAL --ra debug/phien-hoi-truong-moi --thu-vien-mat debug/mau-bo-sung-python.npz
+```
+
+Chương trình dùng bước vuốt ngắn, kiểm tra cuộn ngược/quay lại ảnh cuối và chồng lấp của lưới giữa các trang. Nhóm 5 thẻ cố định không được tính là bằng chứng chồng lấp. Phiên thiếu chồng lấp báo lỗi và giữ ảnh để kiểm tra; ảnh, `phien.json`, `do_phu.json` và kết quả đọc được xuất riêng. Kiểm tra nối trang chưa thay thế việc gán nhãn đầy đủ từng ô để đo tỷ lệ bỏ sót.
+
+Để thử gợi ý tên nhiều tỷ lệ và xuất báo cáo riêng:
+
+```bash
+.venv/bin/python doc_tuong_cua_toi.py --anh samples/tab_s7_hoi_truong_tren_cung.png samples/tab_s7_hoi_truong_dau.png samples/tab_s7_hoi_truong_cuon.png --goi-y-da-ty-le --thu-muc-ra debug/kiem-tra-ten-python
+```
+
+Báo cáo hiện tối đa 3 ứng viên cùng ảnh mẫu cho mọi thẻ chưa nhận tên, kể cả điểm thấp. Điểm thử nhiều tỷ lệ chỉ dùng để tham khảo; ngưỡng tự nhận tên vẫn dùng điểm gốc. Nếu đã kiểm tra đúng tên, dùng `--thu-muc-ra debug/kiem-tra-ten-python --xac-nhan SO=TEN` để xác nhận thẻ trong báo cáo riêng. Ảnh xác nhận bổ sung vào thư viện mặt dùng chung; viền chỉ được học khi đã chọn khung thủ công.
 
 Khi đã có `tuong_cua_toi.json`, `leo_ai.py` so khung lúc chọn đội: bản ghi có tướng mà bản ghi có khung còn của bạn
 không khung (chỉ xét tướng bản ghi dùng có khung >= 50% số lần) bị đánh dấu "thiếu khung" và để sau cùng
@@ -80,6 +157,8 @@ không khung (chỉ xét tướng bản ghi dùng có khung >= 50% số lần) b
 trận đầu, bản ghi không thiếu khung thắng 15/20. Đọc lại danh sách tướng mỗi khi nâng phẩm tướng.
 
 ## App Android (android/)
+
+Từ bản 1.13, **Đọc lại khung tướng** dùng danh sách lớn trong **Hội Trường Cộng Hưởng**. Mở game ở bản đồ/Màn AFK có nút Hội Trường hoặc mở sẵn Hội Trường, rồi bấm Khung tướng trên bảng nổi (hay Đọc lại khung tướng trong app). Bot nhận phần mũ của cả hai kiểu biểu tượng, cuộn từ đầu tới cuối, đọc nhóm 5 thẻ lớn và lưới 6 cột. Không tự đọc danh sách nhỏ ở đội hình khi bắt đầu leo nữa. Nếu chưa có dữ liệu, bot dùng lựa chọn tay và nhắc đọc Hội Trường. Mất màn, không cuộn được, danh sách rỗng hoặc vượt giới hạn cuộn đều giữ dữ liệu cũ. Thư viện tên còn giới hạn: thẻ chưa chắc chỉ hiện gợi ý, cần xác nhận trong app.
 
 Từ bản 1.12, nút Đóng nằm cạnh nút mở rộng trên hàng đầu của bảng nổi, cách nhau 8dp và có viền riêng. Nền xám của app và bảng nổi sáng thêm một mức; giữ chiều cao nút 24dp.
 
@@ -98,8 +177,7 @@ trình 4 chữ số, bấm lại nút đi tiếp nếu màn thắng chưa chuy�
 khi bảng này đang mở.
 
 App AfkAuto (`./gradlew phatHanh` → `AfkAuto-<phiên bản>.apk`) có cùng các tính năng chọn đội với bản PC: đánh mỗi đội 1
-trận, chép thử theo tỉ lệ lực chiến, vòng 2, so khung tướng, xử lý Thành Tích trống. Lần chạy đầu, app tự đọc danh sách
-tướng ở màn đội hình (lưu trong thư mục riêng của app); đọc lại bằng ⋯ → Khung tướng trên bảng nổi. Từ bản 1.6 có ô
+trận, chép thử theo tỉ lệ lực chiến, vòng 2, so khung tướng, xử lý Thành Tích trống. Đọc danh sách tướng riêng từ Hội Trường (lưu trong thư mục riêng của app) bằng Nâng cao → Khung tướng trên bảng nổi. Từ bản 1.6 có ô
 "Leo hộ người khác" (giống `--leo-ho`): bật ô này **trước**, rồi vào game bấm Đi ở yêu cầu trong Trò chuyện Bang Hội và
 bấm ▶ trên bảng nổi. Đo 17/10: mở game bằng nút "Mở game" của app (hoặc biểu tượng game) khi game đang chạy làm game tải
 lại từ đầu, mất phiên leo hộ đang mở. Module `:vision` là
@@ -151,3 +229,15 @@ Nhãn đúng của ảnh mẫu nằm ở `samples/nhan.txt` và `samples/thanh_t
 - Bot không nhớ các đội đã thử khi chạy lại chương trình.
 - Đã chạy thật 1 giờ 10 phút trên Tab S7 (12/10): thắng 754 → 762 ở Màn AFK. Chưa gặp tình huống kẹt hẳn ở cả hai chế độ.
 - Băng chữ "Trận Chiến Bắt Đầu" và màn trắng chuyển cảnh sau khi thắng đều trả về `khong_ro`. Bot chỉ cần chờ thêm vài giây.
+
+Lượt Python v2 ngày 08/11: quy tắc mới đạt 43/43 trên bộ phát triển và 50/50 khi đọc lại bộ đã biết nhãn; không coi hai số này là kiểm chứng độc lập mới. Đã đối chiếu đủ 121/121 tướng trên tài khoản kiểm tra qua nguồn Bộ Sưu Tập. Vòng mới `test-2d9de2fc4f0046c5` gồm 40 thẻ chọn từ 71 nhóm chưa thuộc bộ cũ, đã được người dùng gán nhãn và đạt 40/40 đúng. Bản v2 đã được kích hoạt trên Python, có thể khôi phục bản trước. Chi tiết trong [hướng dẫn](docs/quan-ly-mau-va-kiem-chung.md).
+
+09/11 — Python đã bổ sung xác minh danh sách ngắn theo số tham chiếu, sửa hàng lưới chỉ có một thẻ tóc trắng và giữ nhiều diện mạo cho một tên. Đã thử máy thật với 48 tướng và danh sách lọc 6 thẻ. Thêm 22 mẫu đọc tên trực tiếp, gồm hai chân dung Isabella/Silvina từng dễ nhầm; bản mới đã kích hoạt. Xem [hướng dẫn danh sách ngắn và diện mạo](docs/danh-sach-ngan-va-dien-mao.md).
+
+09/11 — Android 1.14 chuyển bộ nhận diện v2 và 124 mẫu mặt đã duyệt, kiểm tra biên/sao, giữ khung chưa rõ, xác minh cuộn và quản lý mẫu tên theo phiên bản. Bộ đối chiếu Python–Kotlin: 90 thẻ, 42 ảnh gốc, 296 kết quả danh sách khớp. Xem [báo cáo Android](docs/android-khung-v2.md) cho kết quả thiết bị và giới hạn.
+
+Kiểm tra trực tiếp Android 1.14: tài khoản đang mở có 120 tướng theo Bộ Sưu Tập (131 ô, 11 chưa sở hữu). Phiên 16 ảnh cho 120 nhóm, 111 tên tự nhận/9 chưa rõ, toàn bộ kết quả và biên khớp Python khi đọc lại cùng ảnh. Thử mốc 121 đã giữ nguyên dữ liệu cũ và lựa chọn tay.
+
+09/11 — Android 1.17 đã bổ sung 22 mẫu mặt có bằng chứng đọc tên trực tiếp, gồm 9 thẻ chưa rõ ban đầu, SS/Gunnar và 11 thẻ sát ngưỡng (có Gwyneth). Bộ mẫu có 146 ảnh mặt/125 tên, giữ ngưỡng và mô hình khung. Đối chiếu 48 ảnh, 360 kết quả danh sách và 90 thẻ khung đều qua trên JVM/Tab S7. Lượt đọc thật cuối nhận đủ 120/120 tên, giữ nguyên 10 lựa chọn tay. Xem [bảng tên và kiểm tra hồi quy](docs/chin-the-chua-ro.md).
+
+10/11 — Android 1.18 tách kết quả/khung tay/ảnh xác nhận theo hồ sơ tài khoản, giữ bộ mẫu tên dùng chung; bổ sung thu hồi mẫu đã duyệt, chuyển mẫu hợp lệ qua cập nhật và lịch sử khôi phục. Đã thử máy thật 120/48 tướng, danh sách lọc 6 và các ca từ chối lưu khi tham chiếu sai/cuộn ngược không xác minh. Xem [hồ sơ và quản lý mẫu](docs/ho-so-va-mau-android.md); kiểm chứng trên tài khoản mới/thiết bị khác còn thiếu nguồn.

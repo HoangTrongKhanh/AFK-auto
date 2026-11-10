@@ -14,8 +14,8 @@ android {
         applicationId = "vn.afkauto.leoai"
         minSdk = 30             // AccessibilityService.takeScreenshot() cần Android 11
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.12"
+        versionCode = 29
+        versionName = "1.19"
         testInstrumentationRunner = "vn.afkauto.leoai.V2Instrumentation"
     }
 
